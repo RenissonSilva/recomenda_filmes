@@ -1,0 +1,70 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens de design. Viram utilitários do Tailwind automaticamente:
+ * --color-surface → bg-surface, text-surface, border-surface...
+ */
+@theme {
+  --color-canvas: #0b0b10;
+  --color-surface: #14141c;
+  --color-surface-2: #1d1d29;
+  --color-line: #2a2a3a;
+
+  --color-fg: #f3f3f8;
+  --color-fg-muted: #a6a6bb;
+  --color-fg-subtle: #727289;
+
+  --color-brand: #8b5cf6;
+  --color-brand-hover: #7c3aed;
+  --color-brand-fg: #ffffff;
+
+  /* Escala de avaliação */
+  --color-rating-hate: #ef4444;
+  --color-rating-dislike: #f97316;
+  --color-rating-like: #22c55e;
+  --color-rating-love: #ec4899;
+
+  /* Faixas de compatibilidade */
+  --color-match-high: #22c55e;
+  --color-match-medium: #eab308;
+  --color-match-low: #f97316;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Anel de foco visível apenas na navegação por teclado. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+/* Esconde a barra de rolagem mantendo a rolagem (carrosséis horizontais). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-brand) 45%, transparent);
+  }
+
+  input[type='search']::-webkit-search-cancel-button {
+    appearance: none;
+  }
+}
