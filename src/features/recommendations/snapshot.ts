@@ -1,12 +1,7 @@
 import type { MediaKey } from '@/domain/media';
 import { isPositiveRating } from '@/domain/rating';
 import { MIN_RATINGS_FOR_RECOMMENDATIONS, type RatedTitleInput } from '@/domain/recommendation';
-import {
-  sortedEntries,
-  type EntryMap,
-  type LibraryData,
-  type RatedEntry,
-} from '@/features/library/library-state';
+import { sortedEntries, type EntryMap, type LibraryData, type RatedEntry } from '@/domain/library';
 import { hashString } from '@/lib/hash';
 
 /** "Foto" das avaliações usada para pedir recomendações ao servidor. */

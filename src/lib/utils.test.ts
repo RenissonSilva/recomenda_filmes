@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { interleave, uniqueBy } from './array';
+import { chunk, interleave, uniqueBy } from './array';
 import { mapWithConcurrency } from './async';
-import { formatList, formatRuntime, formatVoteAverage, pluralize } from './format';
+import { formatList, formatRuntime, formatVoteAverage, getInitials, pluralize } from './format';
 import { hashString } from './hash';
 import { tmdbImageLoader } from './tmdb-image';
 
@@ -25,6 +25,12 @@ describe('array', () => {
 
   it('interleave intercala listas de tamanhos diferentes', () => {
     expect(interleave([1, 3, 5, 7], [2, 4])).toEqual([1, 2, 3, 4, 5, 7]);
+  });
+
+  it('chunk divide a lista em partes', () => {
+    expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+    expect(chunk([], 3)).toEqual([]);
+    expect(() => chunk([1], 0)).toThrow(RangeError);
   });
 });
 
@@ -60,6 +66,9 @@ describe('format', () => {
     expect(formatList(['Duna', 'Dark', 'Arcane'])).toBe('Duna, Dark e Arcane');
     expect(pluralize(1, 'título', 'títulos')).toBe('1 título');
     expect(pluralize(3, 'título', 'títulos')).toBe('3 títulos');
+    expect(getInitials('Ana Maria Souza')).toBe('AS');
+    expect(getInitials('  ana ')).toBe('A');
+    expect(getInitials('')).toBe('');
   });
 });
 

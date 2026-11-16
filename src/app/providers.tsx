@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Toaster } from 'sonner';
 
+import { LibrarySyncManager } from '@/features/account/components/library-sync-manager';
 import { LibraryHydrator } from '@/features/library/components/library-hydrator';
 
 let browserQueryClient: QueryClient | undefined;
@@ -31,6 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={getQueryClient()}>
       <LibraryHydrator />
+      <LibrarySyncManager />
       {children}
       <Toaster
         theme="dark"

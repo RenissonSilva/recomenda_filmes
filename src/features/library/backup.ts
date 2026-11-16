@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import { libraryDataSchema } from './library-schema';
-import type { LibraryData } from './library-state';
+import { libraryDataSchema } from '@/domain/library-schema';
+import type { LibraryData } from '@/domain/library';
 
 /**
  * Backup da biblioteca em arquivo JSON — como os dados ficam só no navegador,

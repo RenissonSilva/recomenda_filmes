@@ -29,3 +29,11 @@ export function formatList(items: readonly string[]): string {
 export function pluralize(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
+
+/** Iniciais para avatares: "Ana Maria Souza" → "AS"; "ana" → "A". */
+export function getInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const first = words[0]?.[0] ?? '';
+  const last = words.length > 1 ? (words.at(-1)?.[0] ?? '') : '';
+  return `${first}${last}`.toLocaleUpperCase(LOCALE);
+}

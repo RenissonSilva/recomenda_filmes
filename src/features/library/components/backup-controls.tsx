@@ -10,7 +10,7 @@ import { pluralize } from '@/lib/format';
 
 import { backupFileName, createBackup, InvalidBackupError, parseBackup } from '../backup';
 import { useLibraryActions } from '../hooks';
-import type { LibraryData } from '../library-state';
+import type { LibraryData } from '@/domain/library';
 import { useLibraryStore } from '../store';
 
 function downloadJson(fileName: string, data: unknown) {
@@ -26,6 +26,8 @@ type PendingAction = { kind: 'import'; data: LibraryData } | { kind: 'clear' } |
 /** Exportar/importar a biblioteca em JSON e apagar todos os dados. */
 export function BackupControls() {
   const { replaceAll, clear } = useLibraryActions();
+  const synced = useLibraryStore((state) => state.sync.ownerId !== null);
+  const where = synced ? 'da sua conta' : 'deste navegador';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<PendingAction>(null);
 
@@ -77,7 +79,7 @@ export function BackupControls() {
       <ConfirmDialog
         open={pending?.kind === 'import'}
         title="Importar backup?"
-        description={`O backup tem ${pluralize(importedCount, 'avaliação', 'avaliações')}. Ele vai substituir todos os dados atuais deste navegador.`}
+        description={`O backup tem ${pluralize(importedCount, 'avaliação', 'avaliações')}. Ele vai substituir todos os dados atuais ${where}.`}
         confirmLabel="Importar e substituir"
         onConfirm={() => {
           if (pending?.kind !== 'import') return;
@@ -90,7 +92,7 @@ export function BackupControls() {
       <ConfirmDialog
         open={pending?.kind === 'clear'}
         title="Apagar todos os dados?"
-        description="Suas avaliações, a lista Quero ver e os títulos dispensados serão apagados deste navegador. Considere exportar um backup antes."
+        description={`Suas avaliações, a lista Quero ver e os títulos dispensados serão apagados ${where}. Considere exportar um backup antes.`}
         confirmLabel="Apagar tudo"
         tone="danger"
         onConfirm={() => {

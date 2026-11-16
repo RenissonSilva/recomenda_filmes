@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { getMediaKey } from '@/domain/media';
-import {
-  EMPTY_LIBRARY,
-  dismissTitle,
-  rateTitle,
-  toggleWatchlist,
-} from '@/features/library/library-state';
+import { EMPTY_LIBRARY, dismissTitle, rateTitle, toggleWatchlist } from '@/domain/library';
 import { buildMedia } from '@test/fixtures/media';
 
 import {

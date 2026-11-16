@@ -13,6 +13,10 @@ export const routes = {
   recommendations: '/recomendacoes',
   ratings: '/minhas-avaliacoes',
   watchlist: '/quero-ver',
+  signIn: '/entrar',
+  signUp: '/criar-conta',
+  forgotPassword: '/esqueci-a-senha',
+  resetPassword: '/redefinir-senha',
   title: (media: Pick<MediaSummary, 'mediaType' | 'id'>) =>
     `/${MEDIA_ROUTE_SEGMENTS[media.mediaType]}/${media.id}`,
 } as const;
@@ -22,4 +26,6 @@ export const apiRoutes = {
   discover: '/api/titles/discover',
   search: '/api/titles/search',
   recommendations: '/api/recommendations',
+  library: '/api/library',
+  libraryMerge: '/api/library/merge',
 } as const;

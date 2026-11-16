@@ -18,8 +18,13 @@ Avalie filmes, séries e animes que você já assistiu e receba recomendações 
   ser trocada ou desfeita a qualquer momento.
 - **Quero ver** — lista de títulos guardados para depois.
 - **Página do título** — sinopse, elenco, direção, trailer e **onde assistir no Brasil**.
-- **Sem cadastro** — os dados ficam no navegador, com **backup** (exportar/importar JSON) e
-  sincronização entre abas.
+- **Conta opcional** — dá para usar tudo sem cadastro (os dados ficam no navegador). Quem cria
+  conta — com **e-mail e senha** ou **Google** — tem as avaliações salvas no servidor e
+  sincronizadas entre dispositivos. As avaliações feitas antes do login vão para a conta: sem
+  perguntar, se ela estiver vazia; senão, o usuário escolhe entre **juntar** ou **descartar** as
+  do navegador. Ao sair, o navegador é limpo (os dados continuam na conta).
+- **Recuperação de senha** — link enviado por e-mail (válido por 60 minutos).
+- **Backup** — exportar/importar JSON, além de sincronização entre abas.
 - Interface em português, responsiva (com barra de navegação inferior no celular) e acessível.
 
 ## Tecnologias
@@ -30,26 +35,90 @@ Avalie filmes, séries e animes que você já assistiu e receba recomendações 
 | Linguagem      | TypeScript (modo estrito)                                                  |
 | Estilo         | Tailwind CSS 4 com tokens de design próprios                               |
 | Dados no front | TanStack Query (requisições) e Zustand (avaliações salvas no navegador)    |
+| Autenticação   | [Better Auth](https://www.better-auth.com) (e-mail e senha + Google)       |
+| Banco de dados | PostgreSQL com [Drizzle ORM](https://orm.drizzle.team) (e migrações)       |
 | Validação      | Zod (entradas da API, backup e dados do `localStorage`)                    |
 | Catálogo       | [API do TMDB](https://developer.themoviedb.org/docs)                       |
 | Qualidade      | Vitest + Testing Library, ESLint, Prettier e GitHub Actions                |
 
 ## Como rodar
 
-**Pré-requisitos:** Node.js 22.13 ou mais recente e uma conta gratuita no [TMDB](https://www.themoviedb.org).
+**Pré-requisitos:** Node.js 22.13 ou mais recente, Docker (para o banco de desenvolvimento) e uma
+conta gratuita no [TMDB](https://www.themoviedb.org).
 
 1. **Crie a chave da API do TMDB:** em _Configurações → API_, copie o **Token de leitura da API**
    (o token longo, que começa com `eyJ`).
-2. **Configure o ambiente:** copie `.env.example` para `.env` e preencha `TMDB_API_READ_TOKEN`.
-   A chave v3 (`TMDB_API_KEY`) também funciona como alternativa. O arquivo `.env` não vai para o git.
-3. **Instale e rode:**
+2. **Configure o ambiente:** copie `.env.example` para `.env` e preencha:
+   - `TMDB_API_READ_TOKEN` (a chave v3, `TMDB_API_KEY`, também funciona);
+   - `BETTER_AUTH_SECRET` com um valor aleatório: `openssl rand -base64 32`.
+
+   O `DATABASE_URL` do exemplo já aponta para o banco do `compose.yaml`. O arquivo `.env` não vai
+   para o git.
+
+3. **Instale, suba o banco, crie as tabelas e rode:**
 
    ```bash
    npm install
+   npm run db:up       # PostgreSQL no Docker (porta 5433)
+   npm run db:migrate  # cria as tabelas
    npm run dev
    ```
 
 4. Acesse <http://localhost:3000>.
+
+> Sem banco configurado o app continua funcionando sem login; só as contas ficam indisponíveis.
+
+### Login com Google (opcional)
+
+1. No [Google Cloud Console](https://console.cloud.google.com/apis/credentials), crie um
+   **ID do cliente OAuth** do tipo _Aplicativo da Web_.
+2. Em **URIs de redirecionamento autorizados**, adicione
+   `http://localhost:3000/api/auth/callback/google` (e o equivalente do domínio em produção).
+3. Preencha `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` no `.env`. O botão “Continuar com Google”
+   aparece automaticamente quando as duas variáveis existem.
+
+### E-mails (recuperação de senha)
+
+Defina `SMTP_URL` (ex.: `smtps://usuario:senha@smtp.exemplo.com:465`) e `EMAIL_FROM`. Sem SMTP, em
+desenvolvimento o e-mail — com o link de redefinição — aparece no terminal do `npm run dev`.
+
+### Deploy (Vercel + Neon)
+
+O app está preparado para a [Vercel](https://vercel.com) (plano Hobby, gratuito para uso pessoal)
+com o PostgreSQL do [Neon](https://neon.com) (plano gratuito). O [`vercel.json`](vercel.json) roda
+`npm run db:migrate` antes do build, então as migrações da pasta `drizzle/` são aplicadas a cada
+deploy, automaticamente.
+
+1. **Importe o repositório:** na Vercel, _Add New → Project_ e escolha este repositório do GitHub.
+   O framework (Next.js) é detectado sozinho.
+2. **Crie o banco:** no projeto da Vercel, _Storage → Create Database → Neon_ e conecte ao
+   projeto. A integração cria o `DATABASE_URL` (com pooler, usado pelo app) e o
+   `DATABASE_URL_UNPOOLED` (conexão direta, usada pelas migrações).
+3. **Configure as variáveis** em _Settings → Environment Variables_:
+
+   | Variável                                    | Valor                                                       |
+   | ------------------------------------------- | ----------------------------------------------------------- |
+   | `TMDB_API_READ_TOKEN`                       | o mesmo token do desenvolvimento                            |
+   | `BETTER_AUTH_SECRET`                        | um valor **novo**: `openssl rand -base64 32`                |
+   | `BETTER_AUTH_URL`                           | o domínio público, ex.: `https://seu-app.vercel.app`        |
+   | `SMTP_URL` e `EMAIL_FROM`                   | servidor de e-mail (sem eles, a recuperação de senha falha) |
+   | `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` | opcionais, para o login com Google                          |
+
+4. **Faça o deploy** (_Deployments → Redeploy_, ou um push na branch `main`).
+5. **Login com Google:** adicione `https://seu-app.vercel.app/api/auth/callback/google` aos URIs de
+   redirecionamento do cliente OAuth.
+
+**E-mail gratuito para uso pessoal:** o Gmail funciona com uma
+[senha de app](https://myaccount.google.com/apppasswords) (exige verificação em duas etapas):
+`SMTP_URL=smtps://seu.email%40gmail.com:senhadeapp@smtp.gmail.com:465`. O `@` do usuário vira `%40`
+e os espaços da senha de app são removidos.
+
+> As _preview deployments_ (de outras branches) também rodam as migrações. Com a integração do
+> Neon, cada preview pode ganhar uma branch própria do banco; sem isso, elas usam o banco de
+> produção.
+
+Em outra hospedagem, configure as mesmas variáveis e rode `npm run db:migrate` antes de
+`npm run build`.
 
 ### Scripts
 
@@ -65,6 +134,10 @@ Avalie filmes, séries e animes que você já assistiu e receba recomendações 
 | `npm run typecheck`     | Gera os tipos das rotas e roda o TypeScript                |
 | `npm run format`        | Formata o código com Prettier                              |
 | `npm run check`         | Tudo o que a CI verifica: lint, tipos, formatação e testes |
+| `npm run db:up`         | Sobe o PostgreSQL de desenvolvimento (Docker)              |
+| `npm run db:migrate`    | Aplica as migrações pendentes no banco                     |
+| `npm run db:generate`   | Gera uma migração a partir das mudanças no schema          |
+| `npm run db:studio`     | Abre o Drizzle Studio para inspecionar o banco             |
 
 ## Como a recomendação funciona
 
@@ -119,13 +192,26 @@ Navegador                                         Servidor (Next.js)            
 ┌──────────────────────────────┐   /api/titles/*   ┌─────────────────────────────────┐
 │ Páginas e componentes React  │ ────────────────► │ Route Handlers (validação Zod)  │
 │ TanStack Query (requisições) │ /api/recommend…   │  ├─ catálogo  ('use cache') ────┼──► API v3
-│ Zustand + localStorage       │ ────────────────► │  └─ recomendador (funções puras)│
-│ (avaliações e listas)        │                   │ Páginas de título (RSC)         │
-└──────────────────────────────┘                   └─────────────────────────────────┘
+│ Zustand + localStorage       │ ────────────────► │  ├─ recomendador (funções puras)│
+│ (avaliações e listas)        │ /api/library      │  ├─ biblioteca da conta ────────┼──► PostgreSQL
+│ Sincronização em 2º plano    │ ────────────────► │  └─ /api/auth (Better Auth) ────┼──► (Drizzle)
+└──────────────────────────────┘                   │ Páginas de título (RSC)         │
+                                                   └─────────────────────────────────┘
 ```
 
-- **Sem login:** as avaliações vivem no `localStorage` (store Zustand persistido e validado com Zod).
-  O navegador envia as notas para o servidor, que calcula as recomendações.
+- **Local primeiro:** as avaliações vivem no `localStorage` (store Zustand persistido e validado com
+  Zod), então a interface responde na hora, com ou sem login. O navegador envia as notas para o
+  servidor, que calcula as recomendações.
+- **Contas e sincronização:** com login, o `localStorage` vira uma cópia local da conta. Cada
+  alteração entra numa fila (`sync.pendingKeys`) e é enviada em segundo plano, agrupada, com novas
+  tentativas em caso de falha e `keepalive` ao fechar a aba (`src/features/library/sync`). Na
+  conta, cada título é uma linha com a sua situação em todas as listas (`LibraryItem`), o que
+  permite juntar bibliotecas título a título (vale a ação mais recente). Ao voltar para a aba, o
+  app busca o que mudou em outros dispositivos.
+- **Segurança:** toda rota da biblioteca identifica o usuário pela sessão (nunca por um id enviado
+  pelo cliente); o retorno pós-login só aceita caminhos internos; um login com Google só é ligado
+  a uma conta de e-mail e senha cujo e-mail foi verificado (pelo link de redefinição de senha), o
+  que evita o sequestro de contas pré-cadastradas com o e-mail de outra pessoa.
 - **Chave protegida:** o TMDB só é chamado no servidor (`import 'server-only'`); a chave nunca chega
   ao navegador.
 - **Cache:** as consultas ao TMDB usam `'use cache'` + `cacheLife` (detalhes por dias, buscas por
@@ -145,17 +231,24 @@ src/
 │   ├── catalog/         # Listagem e busca de títulos (cliente da API interna)
 │   ├── rating/          # Escala de avaliação e tela "Avaliar"
 │   ├── recommendations/ # Tela de recomendações e "foto" das avaliações
-│   ├── library/         # Biblioteca do usuário: store, backup e telas de listas
+│   ├── library/         # Biblioteca do usuário: store, backup, telas de listas e sincronização
+│   ├── auth/            # Telas e formulários de login, cadastro e recuperação de senha
+│   ├── account/         # Liga a sessão à biblioteca: menu da conta, logout e junção de dados
 │   ├── title/           # Página de detalhes do título
 │   └── home/            # Página inicial
 ├── domain/              # Tipos e regras de negócio puros (sem React/Next), com schemas Zod
 ├── server/              # Código exclusivo do servidor
 │   ├── tmdb/            # Cliente, tipos, conversores e catálogo do TMDB
 │   ├── recommendations/ # Motor de recomendação
+│   ├── auth/            # Configuração do Better Auth e leitura da sessão
+│   ├── db/              # Conexão e schema do banco (Drizzle)
+│   ├── library/         # Biblioteca sincronizada de cada usuário (repositório)
+│   ├── email/           # Envio de e-mails (SMTP) e modelos
 │   └── http/            # Utilitários dos Route Handlers (erros padronizados)
 ├── lib/                 # Utilitários genéricos (formatação, rotas, http, arrays…)
 ├── hooks/               # Hooks genéricos
-└── config/              # Configurações do site e da navegação
+└── config/              # Configurações do site, da navegação e da autenticação
+drizzle/                 # Migrações SQL do banco (geradas pelo Drizzle Kit)
 test/                    # Configuração e fixtures dos testes
 ```
 
@@ -163,7 +256,7 @@ test/                    # Configuração e fixtures dos testes
 
 - **Camadas:** `domain` não depende de nada do app; `server` não é importado pelo cliente;
   componentes de `ui` não conhecem o domínio. As regras ficam em funções puras e testáveis
-  (ex.: `library-state.ts`); hooks e componentes apenas as conectam.
+  (ex.: `domain/library.ts`); hooks e componentes apenas as conectam.
 - **Componentes reutilizáveis:** o `MediaCard` é a base de todos os cards (avaliar, recomendação,
   lista e relacionados), que só preenchem os seus “slots”.
 - **Estilo:** cores e tokens em `src/app/globals.css` (`@theme`); variantes com
@@ -179,14 +272,19 @@ npm test
 ```
 
 Os testes cobrem o motor de recomendação (com um catálogo falso), os conversores do TMDB, as
-regras da biblioteca, o backup, a “foto” das avaliações, utilitários, a rota da API e componentes
-de interface. A CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda lint, tipos,
+regras da biblioteca, a sincronização com a conta (com um servidor falso), a junção de bibliotecas,
+o backup, a “foto” das avaliações, utilitários, as rotas da API, a tela de login e componentes de
+interface. Os testes não precisam de banco de dados. A CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda lint, tipos,
 formatação, testes e build a cada push e pull request.
 
 ## Limitações e próximos passos
 
-- **Dados no navegador:** trocar de navegador ou limpar os dados apaga as avaliações — use o backup
-  em _Minhas avaliações_. Um próximo passo natural é ter contas com sincronização.
+- **Sem login, dados só no navegador:** trocar de navegador ou limpar os dados apaga as avaliações —
+  crie uma conta ou use o backup em _Minhas avaliações_.
+- **Conflitos entre dispositivos:** se o mesmo título for alterado em dois dispositivos ao mesmo
+  tempo, vale o último envio.
+- **Limite de tentativas de login:** o Better Auth guarda o contador em memória; com vários
+  servidores, configure um armazenamento compartilhado (`rateLimit.storage`).
 - **Cache em memória:** o cache do Next.js fica na memória do servidor. Em hospedagem serverless
   as entradas não persistem entre requisições; nesse caso, configure um
   [cache handler remoto](https://nextjs.org/docs/app/api-reference/directives/use-cache-remote).

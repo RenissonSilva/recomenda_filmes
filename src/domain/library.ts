@@ -1,5 +1,5 @@
-import { getMediaKey, toMediaSummary, type MediaKey, type MediaSummary } from '@/domain/media';
-import type { RatingValue } from '@/domain/rating';
+import { getMediaKey, toMediaSummary, type MediaKey, type MediaSummary } from './media';
+import type { RatingValue } from './rating';
 
 /**
  * Estado da biblioteca do usuário e suas transições.

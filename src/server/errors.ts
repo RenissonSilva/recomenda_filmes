@@ -1,7 +1,12 @@
 import 'server-only';
 
 export type AppErrorCode =
-  'TMDB_NOT_CONFIGURED' | 'TMDB_REQUEST_FAILED' | 'INVALID_REQUEST' | 'INTERNAL_ERROR';
+  | 'TMDB_NOT_CONFIGURED'
+  | 'TMDB_REQUEST_FAILED'
+  | 'SERVER_NOT_CONFIGURED'
+  | 'UNAUTHORIZED'
+  | 'INVALID_REQUEST'
+  | 'INTERNAL_ERROR';
 
 /** Erro de aplicação com código e status HTTP — convertido em resposta JSON pelas rotas da API. */
 export class AppError extends Error {
@@ -44,5 +49,26 @@ export class TmdbRequestError extends AppError {
 
   get isNotFound(): boolean {
     return this.upstreamStatus === 404;
+  }
+}
+
+/** Variável de ambiente obrigatória ausente (ex.: banco de dados ou segredo da autenticação). */
+export class MissingEnvError extends AppError {
+  constructor(
+    /** Nome da variável — aparece só nos logs. */
+    readonly variable: string,
+  ) {
+    super(
+      'O servidor não está configurado para esta função. Tente novamente mais tarde.',
+      'SERVER_NOT_CONFIGURED',
+      500,
+    );
+  }
+}
+
+/** A requisição exige uma sessão válida (usuário logado). */
+export class UnauthorizedError extends AppError {
+  constructor() {
+    super('Sua sessão expirou. Entre na sua conta novamente.', 'UNAUTHORIZED', 401);
   }
 }

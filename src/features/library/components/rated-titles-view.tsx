@@ -9,13 +9,14 @@ import { MediaGrid, MediaGridSkeleton } from '@/components/media/media-grid';
 import { ButtonLink } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { LibraryStorageNotice } from '@/features/account/components/library-storage-notice';
 import { getMediaKey, matchesFilter, type MediaFilter } from '@/domain/media';
 import { RATING_OPTIONS, UNSEEN_LABEL, type RatingValue } from '@/domain/rating';
 import { RateableMediaCard } from '@/features/rating/components/rateable-media-card';
 import { routes } from '@/lib/routes';
 
 import { useLibraryHydrated } from '../hooks';
-import { sortedEntries } from '../library-state';
+import { sortedEntries } from '@/domain/library';
 import { useLibraryStore } from '../store';
 import { BackupControls } from './backup-controls';
 
@@ -117,10 +118,9 @@ export function RatedTitlesView() {
         <h2 id="backup-title" className="font-semibold">
           Seus dados
         </h2>
-        <p className="mt-1 mb-4 max-w-2xl text-sm text-fg-muted">
-          Suas avaliações ficam salvas apenas neste navegador. Exporte um backup para guardar uma
-          cópia ou levá-las para outro dispositivo.
-        </p>
+        <div className="mt-1 mb-4">
+          <LibraryStorageNotice />
+        </div>
         <BackupControls />
       </section>
     </div>

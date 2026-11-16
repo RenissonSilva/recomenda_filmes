@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildMedia } from '@test/fixtures/media';
 
 import { backupFileName, createBackup, InvalidBackupError, parseBackup } from './backup';
-import { EMPTY_LIBRARY, rateTitle, toggleWatchlist } from './library-state';
+import { EMPTY_LIBRARY, rateTitle, toggleWatchlist } from '@/domain/library';
 
 describe('backup', () => {
   const date = new Date('2026-11-16T10:30:00.000Z');

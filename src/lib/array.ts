@@ -22,3 +22,13 @@ export function interleave<T>(...lists: ReadonlyArray<readonly T[]>): T[] {
 
   return result;
 }
+
+/** Divide a lista em partes de até `size` itens: chunk([1, 2, 3], 2) → [[1, 2], [3]]. */
+export function chunk<T>(items: readonly T[], size: number): T[][] {
+  if (size < 1) throw new RangeError('O tamanho das partes deve ser pelo menos 1.');
+  const parts: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    parts.push(items.slice(index, index + size));
+  }
+  return parts;
+}

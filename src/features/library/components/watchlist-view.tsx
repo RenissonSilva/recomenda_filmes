@@ -13,7 +13,7 @@ import { RateDisclosure } from '@/features/rating/components/rate-disclosure';
 import { routes } from '@/lib/routes';
 
 import { useLibraryHydrated } from '../hooks';
-import { sortedEntries } from '../library-state';
+import { sortedEntries } from '@/domain/library';
 import { useLibraryStore } from '../store';
 import { WatchlistButton } from './watchlist-button';
 

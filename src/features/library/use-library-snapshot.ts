@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { useLibraryHydrated } from './hooks';
-import type { LibraryData } from './library-state';
+import type { LibraryData } from '@/domain/library';
 import { useLibraryStore } from './store';
 
 /**

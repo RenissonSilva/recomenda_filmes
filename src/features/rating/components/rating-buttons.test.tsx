@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMediaKey } from '@/domain/media';
-import { EMPTY_LIBRARY } from '@/features/library/library-state';
+import { EMPTY_LIBRARY } from '@/domain/library';
 import { useLibraryStore } from '@/features/library/store';
 import { buildMedia } from '@test/fixtures/media';
 

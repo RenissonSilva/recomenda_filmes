@@ -11,12 +11,12 @@ import {
   removeRating,
   sortedEntries,
   toggleWatchlist,
-} from './library-state';
+} from './library';
 
 const NOW = '2026-11-16T12:00:00.000Z';
 const LATER = '2026-11-16T13:00:00.000Z';
 
-describe('library-state', () => {
+describe('library', () => {
   const media = buildMedia({ title: 'Duna' });
   const key = getMediaKey(media);
 

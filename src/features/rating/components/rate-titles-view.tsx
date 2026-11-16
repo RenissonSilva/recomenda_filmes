@@ -11,7 +11,7 @@ import { LoadMore } from '@/components/ui/load-more';
 import { SearchInput } from '@/components/ui/search-input';
 import { getMediaKey, MEDIA_FILTER_LABELS, type MediaFilter, type MediaKey } from '@/domain/media';
 import { useTitleFeed } from '@/features/catalog/hooks/use-title-feed';
-import type { LibraryData } from '@/features/library/library-state';
+import type { LibraryData } from '@/domain/library';
 import { useLibrarySnapshot } from '@/features/library/use-library-snapshot';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
