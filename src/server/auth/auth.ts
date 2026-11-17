@@ -17,7 +17,7 @@ import { getAuthEnv, getGoogleCredentials } from '../env';
 const DAY_IN_SECONDS = 60 * 60 * 24;
 
 function createAuth() {
-  const { secret, baseURL } = getAuthEnv();
+  const { secret, baseURL, trustedOrigins } = getAuthEnv();
   const google = getGoogleCredentials();
   const db = getDb();
 
@@ -25,6 +25,7 @@ function createAuth() {
     appName: siteConfig.name,
     secret,
     baseURL,
+    trustedOrigins,
     database: drizzleAdapter(db, {
       provider: 'pg',
       schema: {
