@@ -4,22 +4,15 @@ import { useMemo, useState } from 'react';
 
 import { MediaCard } from '@/components/media/media-card';
 import { MediaGrid } from '@/components/media/media-grid';
+import { TitleSortSelect } from '@/components/media/title-sort-select';
 import { VoteBadge } from '@/components/media/vote-badge';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
-import { Select } from '@/components/ui/select';
-import {
-  getMediaCategory,
-  getMediaKey,
-  MEDIA_CATEGORIES,
-  MEDIA_FILTER_LABELS,
-  matchesFilter,
-  type MediaCategory,
-  type MediaFilter,
-  type MediaSummary,
-} from '@/domain/media';
-import { sortTitles, TITLE_SORT_LABELS, type TitleSort } from '@/domain/title-sort';
+import { getMediaKey, matchesFilter, type MediaFilter, type MediaSummary } from '@/domain/media';
+import { sortTitles, type TitleSort } from '@/domain/title-sort';
 import { WatchlistButton } from '@/features/library/components/watchlist-button';
+
+import { useMediaGroups, type MediaGrouping } from '../hooks/use-media-groups';
 
 export interface TitleCollectionItem {
   media: MediaSummary;
@@ -31,21 +24,29 @@ interface TitleCollectionProps {
   items: readonly TitleCollectionItem[];
   /** Ordenações oferecidas; a primeira é a padrão. */
   sorts: readonly [TitleSort, ...TitleSort[]];
-  /**
-   * `filter`: "Tudo" + as seções presentes (o filtro some quando há uma seção só).
-   * `tabs`: uma aba por seção presente, com contagem; começa aberta na que tem mais títulos.
-   */
-  grouping: 'filter' | 'tabs';
+  grouping: MediaGrouping;
   /** Quantos títulos aparecem de início e a cada "Mostrar mais". */
   pageSize?: number;
+  /**
+   * Seção selecionada, quando quem controla é o componente pai (ex.: para mantê-la ao alternar
+   * entre a grade e outra visualização). Sem isso, a própria grade guarda a seleção.
+   */
+  group?: MediaFilter;
+  onGroupChange?: (group: MediaFilter) => void;
 }
 
 /** Grade de títulos com filtro por seção, ordenação e paginação no próprio navegador. */
-export function TitleCollection({ items, sorts, grouping, pageSize = 12 }: TitleCollectionProps) {
-  const counts = useMemo(() => countByCategory(items), [items]);
-  const groups = useMemo(() => buildGroups(counts, grouping), [counts, grouping]);
+export function TitleCollection({
+  items,
+  sorts,
+  grouping,
+  pageSize = 12,
+  group: controlledGroup,
+  onGroupChange,
+}: TitleCollectionProps) {
+  const { options: groups, group: ownGroup, setGroup } = useMediaGroups(items, grouping);
+  const group = controlledGroup ?? ownGroup;
 
-  const [group, setGroup] = useState<MediaFilter>(() => initialGroup(counts, grouping));
   const [sort, setSort] = useState<TitleSort>(sorts[0]);
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
@@ -61,7 +62,7 @@ export function TitleCollection({ items, sorts, grouping, pageSize = 12 }: Title
   const visible = sorted.slice(0, visibleCount);
 
   const changeGroup = (value: MediaFilter) => {
-    setGroup(value);
+    (onGroupChange ?? setGroup)(value);
     setVisibleCount(pageSize);
   };
   const changeSort = (value: TitleSort) => {
@@ -83,21 +84,7 @@ export function TitleCollection({ items, sorts, grouping, pageSize = 12 }: Title
           ) : (
             <span />
           )}
-          {sorts.length > 1 && (
-            <label className="flex items-center gap-2 text-sm text-fg-muted">
-              Ordenar por
-              <Select
-                value={sort}
-                onChange={(event) => changeSort(event.target.value as TitleSort)}
-              >
-                {sorts.map((option) => (
-                  <option key={option} value={option}>
-                    {TITLE_SORT_LABELS[option]}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
+          {sorts.length > 1 && <TitleSortSelect sorts={sorts} value={sort} onChange={changeSort} />}
         </div>
       )}
 
@@ -124,50 +111,4 @@ export function TitleCollection({ items, sorts, grouping, pageSize = 12 }: Title
       )}
     </div>
   );
-}
-
-function countByCategory(items: readonly TitleCollectionItem[]): Map<MediaCategory, number> {
-  const counts = new Map<MediaCategory, number>();
-  for (const { media } of items) {
-    const category = getMediaCategory(media);
-    counts.set(category, (counts.get(category) ?? 0) + 1);
-  }
-  return counts;
-}
-
-/** Opções de seção, na ordem fixa Filmes · Séries · Animes (só as que têm títulos). */
-function buildGroups(
-  counts: ReadonlyMap<MediaCategory, number>,
-  grouping: TitleCollectionProps['grouping'],
-) {
-  const option = (value: MediaFilter, count: number) => ({
-    value,
-    label: MEDIA_FILTER_LABELS[value],
-    count,
-  });
-
-  const options = MEDIA_CATEGORIES.filter((category) => counts.has(category)).map((category) =>
-    option(category, counts.get(category) ?? 0),
-  );
-
-  if (grouping === 'tabs') return options;
-  // O filtro só faz sentido quando há mais de uma seção.
-  if (options.length < 2) return [];
-  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
-  return [option('all', total), ...options];
-}
-
-/** Abas: começa na seção com mais títulos (ex.: "Animes" para dubladores japoneses). */
-function initialGroup(
-  counts: ReadonlyMap<MediaCategory, number>,
-  grouping: TitleCollectionProps['grouping'],
-): MediaFilter {
-  if (grouping === 'filter') return 'all';
-  let largest: MediaCategory | null = null;
-  for (const category of MEDIA_CATEGORIES) {
-    if ((counts.get(category) ?? 0) > (largest ? (counts.get(largest) ?? 0) : 0)) {
-      largest = category;
-    }
-  }
-  return largest ?? 'all';
 }

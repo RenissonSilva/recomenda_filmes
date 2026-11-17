@@ -40,7 +40,13 @@ export type TmdbListItem = TmdbMovieListItem | TmdbTvListItem;
 /** Um título na filmografia de uma pessoa (`combined_credits`). */
 export type TmdbPersonCredit<Extra> =
   | (TmdbMovieListItem & { media_type: 'movie'; adult?: boolean } & Extra)
-  | (TmdbTvListItem & { media_type: 'tv'; adult?: boolean; episode_count?: number } & Extra);
+  | (TmdbTvListItem & {
+      media_type: 'tv';
+      adult?: boolean;
+      episode_count?: number;
+      /** Exibição do primeiro episódio com a pessoa (a série pode ter estreado anos antes). */
+      first_credit_air_date?: string | null;
+    } & Extra);
 
 export type TmdbPersonCastCredit = TmdbPersonCredit<{ character?: string }>;
 export type TmdbPersonCrewCredit = TmdbPersonCredit<{ job: string }>;
@@ -56,6 +62,8 @@ export interface TmdbPersonDetails {
   name: string;
   biography?: string;
   known_for_department?: string | null;
+  /** 0 = não informado, 1 = feminino, 2 = masculino, 3 = não binário. */
+  gender?: number;
   birthday?: string | null;
   deathday?: string | null;
   place_of_birth?: string | null;
@@ -155,11 +163,27 @@ interface TmdbDetailsBase {
   'watch/providers'?: { results?: Record<string, TmdbWatchProviderRegion> };
 }
 
+/** Situação de um filme no TMDB. */
+export type TmdbMovieStatus =
+  'Rumored' | 'Planned' | 'In Production' | 'Post Production' | 'Released' | 'Canceled';
+
+/** Situação de uma série no TMDB. */
+export type TmdbTvStatus =
+  'Returning Series' | 'Planned' | 'In Production' | 'Ended' | 'Canceled' | 'Pilot';
+
+/** Episódio em `last_episode_to_air` / `next_episode_to_air`. */
+export interface TmdbEpisodeAiring {
+  season_number: number;
+  episode_number: number;
+  air_date?: string | null;
+}
+
 export interface TmdbMovieDetails extends TmdbDetailsBase {
   title: string;
   original_title?: string;
   release_date?: string;
   runtime?: number | null;
+  status?: TmdbMovieStatus | string;
   keywords?: { keywords?: TmdbKeyword[] };
   recommendations?: TmdbPaginated<TmdbMovieListItem>;
 }
@@ -170,6 +194,10 @@ export interface TmdbTvDetails extends TmdbDetailsBase {
   first_air_date?: string;
   episode_run_time?: number[];
   number_of_seasons?: number;
+  number_of_episodes?: number;
+  status?: TmdbTvStatus | string;
+  last_episode_to_air?: TmdbEpisodeAiring | null;
+  next_episode_to_air?: TmdbEpisodeAiring | null;
   created_by?: Array<{ id: number; name: string; profile_path?: string | null }>;
   /** Em séries o TMDB devolve as palavras-chave em `results` (em filmes, em `keywords`). */
   keywords?: { results?: TmdbKeyword[] };

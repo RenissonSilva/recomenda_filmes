@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { CANONICAL_GENRES } from './genres';
 import {
   MEDIA_FILTERS,
   MEDIA_TYPES,
@@ -9,6 +10,7 @@ import {
 } from './media';
 import { RATING_VALUES } from './rating';
 import type { RecommendationRequest } from './recommendation';
+import { DISCOVER_SORTS } from './title-sort';
 
 /**
  * Schemas de validação (Zod) dos contratos do domínio.
@@ -18,6 +20,8 @@ import type { RecommendationRequest } from './recommendation';
 export const mediaTypeSchema = z.enum(MEDIA_TYPES);
 export const mediaFilterSchema = z.enum(MEDIA_FILTERS);
 export const ratingValueSchema = z.enum(RATING_VALUES);
+export const canonicalGenreSchema = z.enum(CANONICAL_GENRES);
+export const discoverSortSchema = z.enum(DISCOVER_SORTS);
 
 export const mediaKeySchema = z.custom<MediaKey>(
   (value) => typeof value === 'string' && parseMediaKey(value) !== null,

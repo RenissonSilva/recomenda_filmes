@@ -3,24 +3,20 @@ import { UserRound } from 'lucide-react';
 import { TmdbImage } from '@/components/media/tmdb-image';
 import { ExpandableText } from '@/components/ui/expandable-text';
 import type { PersonDetails } from '@/domain/person';
-import { formatDate, pluralize } from '@/lib/format';
+import { pluralize } from '@/lib/format';
 
-function buildLifeFacts(person: PersonDetails): Array<{ label: string; value: string }> {
-  const birthday = person.birthday && formatDate(person.birthday);
-  const deathday = person.deathday && formatDate(person.deathday);
-  const birth = [birthday, person.placeOfBirth].filter(Boolean).join(' em ');
+import { PersonFacts } from './person-facts';
 
-  return [
-    { label: 'Nascimento', value: birth },
-    { label: 'Falecimento', value: deathday || '' },
-  ].filter((fact) => fact.value);
+interface PersonHeaderProps {
+  person: PersonDetails;
+  /** Data de hoje ("2026-11-17"), usada para calcular a idade. */
+  today: string;
 }
 
-export function PersonHeader({ person }: { person: PersonDetails }) {
+export function PersonHeader({ person, today }: PersonHeaderProps) {
   const summary = [person.knownFor, pluralize(person.credits.length, 'título', 'títulos')]
     .filter(Boolean)
     .join(' · ');
-  const lifeFacts = buildLifeFacts(person);
 
   return (
     <header className="grid gap-8 pt-8 sm:pt-16 md:grid-cols-[220px_1fr] lg:gap-12">
@@ -45,21 +41,9 @@ export function PersonHeader({ person }: { person: PersonDetails }) {
           <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-5xl">
             {person.name}
           </h1>
-          {person.originalName && (
-            <p className="text-sm text-fg-muted">Nome original: {person.originalName}</p>
-          )}
         </div>
 
-        {lifeFacts.length > 0 && (
-          <dl className="flex flex-col gap-1 text-sm">
-            {lifeFacts.map((fact) => (
-              <div key={fact.label}>
-                <dt className="inline text-fg-muted">{fact.label}: </dt>
-                <dd className="inline">{fact.value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
+        <PersonFacts person={person} today={today} />
 
         {person.biography && <ExpandableText text={person.biography} className="max-w-3xl" />}
       </div>

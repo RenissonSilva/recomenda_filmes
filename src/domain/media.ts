@@ -4,6 +4,7 @@
  */
 
 import { toCanonicalGenres, type CanonicalGenre } from './genres';
+import type { EpisodeAiring, TitleStatus } from './title-status';
 
 /** Formato do título no TMDB. Um anime é um filme ou uma série — ver `MediaCategory`. */
 export const MEDIA_TYPES = ['movie', 'tv'] as const;
@@ -92,10 +93,19 @@ export interface MediaDetails extends MediaSummary {
   trailerYoutubeKey: string | null;
   watchProviders: WatchProviders | null;
   recommendations: MediaSummary[];
+  /** Situação informada pelo TMDB (lançado, em andamento, finalizado…). */
+  status: TitleStatus | null;
+  /** Estreia do filme ou do primeiro episódio da série ("2014-11-06"). */
+  releaseDate: string | null;
+  /** Total de episódios (só séries). */
+  episodeCount: number | null;
+  /** Último episódio já exibido e o próximo previsto (só séries). */
+  lastEpisode: EpisodeAiring | null;
+  nextEpisode: EpisodeAiring | null;
 }
 
 /** Campos usados para classificar um título em uma seção. */
-type CategorizableMedia = Pick<MediaSummary, 'mediaType' | 'genreIds' | 'originalLanguage'>;
+export type CategorizableMedia = Pick<MediaSummary, 'mediaType' | 'genreIds' | 'originalLanguage'>;
 
 export const MEDIA_FILTER_LABELS: Record<MediaFilter, string> = {
   all: 'Tudo',
@@ -144,6 +154,13 @@ export function getMediaCategory(media: CategorizableMedia): MediaCategory {
 export function getMediaLabel(media: CategorizableMedia): string {
   const labels = MEDIA_LABELS[media.mediaType];
   return isAnime(media) ? labels.anime : labels.regular;
+}
+
+/** Gênero gramatical do rótulo, para concordar adjetivos: "a série", mas "o filme" e "o anime". */
+export type GrammaticalGender = 'masculine' | 'feminine';
+
+export function getMediaLabelGender(media: CategorizableMedia): GrammaticalGender {
+  return getMediaCategory(media) === 'tv' ? 'feminine' : 'masculine';
 }
 
 export function matchesFilter(media: CategorizableMedia, filter: MediaFilter): boolean {

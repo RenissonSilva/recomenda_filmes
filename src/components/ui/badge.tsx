@@ -10,6 +10,9 @@ export const badgeVariants = cva(
       variant: {
         neutral: 'bg-surface-2 text-fg-muted',
         brand: 'bg-brand/20 text-violet-200',
+        success: 'bg-emerald-500/15 text-emerald-300',
+        warning: 'bg-amber-500/15 text-amber-200',
+        danger: 'bg-red-500/15 text-red-300',
         solid: 'bg-black/75 text-white backdrop-blur-sm',
       },
     },

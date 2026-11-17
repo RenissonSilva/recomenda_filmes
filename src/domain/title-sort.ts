@@ -1,11 +1,19 @@
 /**
- * Ordenações das listas de títulos (outras obras, parecidos e filmografia).
+ * Ordenações das listas de títulos (outras obras, parecidos, filmografia e explorar).
  */
 
 import type { MediaSummary } from './media';
 
 export const TITLE_SORTS = ['rating', 'popularity', 'recent', 'similarity'] as const;
 export type TitleSort = (typeof TITLE_SORTS)[number];
+
+/** Ordenações que o próprio TMDB faz nas listas paginadas (ex.: explorar um gênero). */
+export const DISCOVER_SORTS = [
+  'popularity',
+  'rating',
+  'recent',
+] as const satisfies readonly TitleSort[];
+export type DiscoverSort = (typeof DISCOVER_SORTS)[number];
 
 export const TITLE_SORT_LABELS: Record<TitleSort, string> = {
   rating: 'Nota',

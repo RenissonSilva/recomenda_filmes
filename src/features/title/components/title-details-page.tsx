@@ -1,7 +1,9 @@
+import { io } from 'next/cache';
 import { Suspense } from 'react';
 
 import { Container } from '@/components/layout/container';
 import type { MediaType } from '@/domain/media';
+import { getTodayIsoDate } from '@/lib/format';
 
 import { loadTitle } from '../load-title';
 import { AuthorWorksSection } from './author-works-section';
@@ -24,10 +26,14 @@ interface TitleDetailsPageProps {
  */
 export async function TitleDetailsPage({ mediaType, params }: TitleDetailsPageProps) {
   const details = await loadTitle(mediaType, params);
+  // A situação (ex.: "Renovada") e a agenda de episódios dependem do dia de hoje:
+  // `io()` deixa esse cálculo fora do prerender.
+  await io();
+  const today = getTodayIsoDate();
 
   return (
     <article>
-      <TitleHero details={details} />
+      <TitleHero details={details} today={today} />
       <Container className="mt-12 flex flex-col gap-12">
         <WatchProvidersSection providers={details.watchProviders} />
         <CastList cast={details.cast} />

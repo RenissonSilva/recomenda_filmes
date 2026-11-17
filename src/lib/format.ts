@@ -1,8 +1,18 @@
 const LOCALE = 'pt-BR';
+/** Fuso usado para saber que dia é "hoje" (ex.: idade de uma pessoa). */
+const TIME_ZONE = 'America/Sao_Paulo';
 
 const listFormatter = new Intl.ListFormat(LOCALE, { style: 'long', type: 'conjunction' });
 // As datas do TMDB não têm horário: formatar em UTC evita voltar um dia no fuso do Brasil.
 const dateFormatter = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'long', timeZone: 'UTC' });
+// O locale canadense formata a data como "2026-11-17", o mesmo formato das datas do TMDB.
+const isoDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const integerFormatter = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
 const decimalFormatter = new Intl.NumberFormat(LOCALE, {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
@@ -28,6 +38,11 @@ export function formatDate(isoDate: string): string | null {
   return Number.isNaN(date.getTime()) ? null : dateFormatter.format(date);
 }
 
+/** Data de hoje no fuso do Brasil, no formato das datas do TMDB: "2026-11-17". */
+export function getTodayIsoDate(now: Date = new Date()): string {
+  return isoDateFormatter.format(now);
+}
+
 /** ["A", "B", "C"] → "A, B e C". */
 export function formatList(items: readonly string[]): string {
   return listFormatter.format(items);
@@ -38,9 +53,9 @@ export function formatListToParts(items: readonly string[]) {
   return listFormatter.formatToParts(items);
 }
 
-/** pluralize(1, 'título', 'títulos') → "1 título". */
+/** pluralize(1, 'título', 'títulos') → "1 título"; pluralize(1180, …) → "1.180 títulos". */
 export function pluralize(count: number, singular: string, plural: string): string {
-  return `${count} ${count === 1 ? singular : plural}`;
+  return `${integerFormatter.format(count)} ${count === 1 ? singular : plural}`;
 }
 
 /** Iniciais para avatares: "Ana Maria Souza" → "AS"; "ana" → "A". */

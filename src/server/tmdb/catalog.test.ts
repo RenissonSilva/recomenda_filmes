@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TmdbRequestError } from '../errors';
 import {
   discoverByKeywords,
-  discoverPopularTitles,
+  discoverTitles,
   discoverTopRatedByGenres,
   getPersonDetails,
   searchTitles,
@@ -12,10 +12,18 @@ import { tmdbGet } from './client';
 import type { TmdbListItem, TmdbMultiSearchItem, TmdbPaginated } from './types';
 
 vi.mock('next/cache', () => ({ cacheLife: vi.fn() }));
+// "Hoje" fixo: a ordenação por data só aceita títulos que já estrearam.
+vi.mock('@/lib/format', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  getTodayIsoDate: () => '2026-11-17',
+}));
 vi.mock('./client', () => ({ tmdbGet: vi.fn() }));
 
 const ANIMATION = 16;
 const DRAMA = 18;
+const HORROR = 27;
+const ACTION_MOVIE = 28;
+const ACTION_ADVENTURE_TV = 10759;
 
 const movie = (id: number, genreIds = [DRAMA], language = 'en') => ({
   id,
@@ -57,17 +65,18 @@ describe('catálogo do TMDB', () => {
     vi.mocked(tmdbGet).mockReset();
   });
 
-  describe('discoverPopularTitles', () => {
+  describe('discoverTitles', () => {
     it('em "Animes", junta séries e filmes de animação japonesa', async () => {
       mockTmdb({
         '/discover/tv': page([series(1, [ANIMATION], 'ja')], 8),
         '/discover/movie': page([movie(2, [ANIMATION], 'ja')], 5),
       });
 
-      const result = await discoverPopularTitles('anime', 1);
+      const result = await discoverTitles('anime', 1);
 
       expect(idsOf(result.items)).toEqual(['tv:1', 'movie:2']);
-      expect(result.totalPages).toBe(5);
+      // Quando os filmes acabam, as séries continuam.
+      expect(result.totalPages).toBe(8);
       for (const path of ['/discover/tv', '/discover/movie']) {
         expect(queryOf(path)).toMatchObject({
           with_genres: String(ANIMATION),
@@ -82,7 +91,7 @@ describe('catálogo do TMDB', () => {
         '/discover/tv': page([series(1), series(2, [ANIMATION], 'ja'), series(3, [ANIMATION])]),
       });
 
-      const result = await discoverPopularTitles('tv', 1);
+      const result = await discoverTitles('tv', 1);
 
       // Animação ocidental continua em "Séries"; só a japonesa vai para "Animes".
       expect(idsOf(result.items)).toEqual(['tv:1', 'tv:3']);
@@ -95,9 +104,76 @@ describe('catálogo do TMDB', () => {
         '/discover/tv': page([series(2, [ANIMATION], 'ja')]),
       });
 
-      const result = await discoverPopularTitles('all', 1);
+      const result = await discoverTitles('all', 1);
 
       expect(idsOf(result.items)).toEqual(['movie:1', 'tv:2', 'movie:3']);
+    });
+
+    it('com um gênero, usa o ID equivalente em filmes e em séries', async () => {
+      mockTmdb({
+        '/discover/movie': page([movie(1, [ACTION_MOVIE])]),
+        '/discover/tv': page([series(2, [ACTION_ADVENTURE_TV])]),
+      });
+
+      await discoverTitles('all', 1, { genre: 'action' });
+
+      expect(queryOf('/discover/movie')).toMatchObject({ with_genres: String(ACTION_MOVIE) });
+      expect(queryOf('/discover/tv')).toMatchObject({ with_genres: String(ACTION_ADVENTURE_TV) });
+    });
+
+    it('nos animes, exige animação e também o gênero escolhido', async () => {
+      mockTmdb({
+        '/discover/tv': page([series(1, [ANIMATION, ACTION_ADVENTURE_TV], 'ja')]),
+        '/discover/movie': page([movie(2, [ANIMATION, ACTION_MOVIE], 'ja')]),
+      });
+
+      await discoverTitles('anime', 1, { genre: 'action' });
+
+      expect(queryOf('/discover/tv')).toMatchObject({
+        with_genres: `${ANIMATION},${ACTION_ADVENTURE_TV}`,
+        with_original_language: 'ja',
+      });
+      expect(queryOf('/discover/movie')).toMatchObject({
+        with_genres: `${ANIMATION},${ACTION_MOVIE}`,
+      });
+    });
+
+    it('ignora a fonte que não tem o gênero e fica vazio se nenhuma tiver', async () => {
+      mockTmdb({ '/discover/movie': page([movie(1, [HORROR])], 3) });
+
+      const all = await discoverTitles('all', 1, { genre: 'horror' });
+      expect(idsOf(all.items)).toEqual(['movie:1']);
+      expect(all.totalPages).toBe(3);
+
+      const tvOnly = await discoverTitles('tv', 1, { genre: 'horror' });
+      expect(tvOnly).toEqual({ page: 1, totalPages: 0, items: [] });
+      expect(vi.mocked(tmdbGet)).toHaveBeenCalledTimes(1);
+    });
+
+    it('ordena por nota exigindo um mínimo de votos', async () => {
+      mockTmdb({ '/discover/movie': page([movie(1)]) });
+
+      await discoverTitles('movie', 1, { sort: 'rating' });
+
+      expect(queryOf('/discover/movie')).toMatchObject({
+        sort_by: 'vote_average.desc',
+        'vote_count.gte': 300,
+      });
+    });
+
+    it('ordena pelos mais recentes que já estrearam, pela data de cada tipo', async () => {
+      mockTmdb({ '/discover/movie': page([movie(1)]), '/discover/tv': page([series(2)]) });
+
+      await discoverTitles('all', 1, { sort: 'recent' });
+
+      expect(queryOf('/discover/movie')).toMatchObject({
+        sort_by: 'primary_release_date.desc',
+        'primary_release_date.lte': '2026-11-17',
+      });
+      expect(queryOf('/discover/tv')).toMatchObject({
+        sort_by: 'first_air_date.desc',
+        'first_air_date.lte': '2026-11-17',
+      });
     });
   });
 

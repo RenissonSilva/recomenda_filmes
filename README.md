@@ -18,15 +18,30 @@ Avalie filmes, séries e animes que você já assistiu e receba recomendações 
   ser trocada ou desfeita a qualquer momento.
 - **Quero ver** — lista de títulos guardados para depois.
 - **Página do título** — sinopse, elenco, direção, trailer e **onde assistir no Brasil**, além de:
+  - **Situação** — selo com o status: _Lançado_, _Em produção_, _Em exibição_, _Em andamento_,
+    _Renovada_, _Finalizada_, _Cancelada_… (concordando com o formato: “a série”, “o anime”), e uma
+    linha com o detalhe: data de lançamento, próximo episódio, estreia da nova temporada ou período
+    em que foi exibida, e o total de episódios. “Em exibição” e “Renovada” vêm da agenda de
+    episódios do TMDB (o próximo episódio continua a temporada atual ou abre uma nova).
+  - **Gêneros clicáveis** — cada gênero leva à página **Explorar** já filtrada na seção do título
+    (ex.: “Ação” em um anime → animes de ação). Os gêneros de série que o TMDB manda em inglês e
+    agrupados são traduzidos e separados (“Action & Adventure” → “Ação” e “Aventura”).
   - **Outras obras de…** — o que mais o autor fez: a **direção** nos filmes, a **criação** nas
     séries e o **autor do mangá/obra original** nos animes (ex.: _Attack on Titan_ → Hajime Isayama).
   - **Parecidos com…** — filmes, séries e animes com **enredo e gênero** semelhantes, com o filtro
     Tudo · Filmes · Séries · Animes (veja [Títulos parecidos](#títulos-parecidos)).
   - **Quem curte… também curte** — as recomendações do próprio TMDB (o que já aparece aqui não se
     repete em “Parecidos”).
-- **Página da pessoa** — clicando em alguém do elenco (ou da direção/criação): foto, biografia e a
-  filmografia em abas **Filmes · Séries · Animes**, com o personagem de cada título. Aparições como
-  “si mesmo” (talk shows, premiações) ficam de fora.
+- **Página da pessoa** — clicando em alguém do elenco (ou da direção/criação): foto, biografia,
+  informações pessoais (gênero, nascimento com idade, falecimento, local de nascimento) e a
+  filmografia em abas **Filmes · Séries · Animes**, com o personagem de cada título. A filmografia
+  alterna entre **Grade** (pôsteres) e **Linha do tempo** (estilo TMDB: blocos Atuação, Direção,
+  Criação e Obra original, por ano, do mais recente ao mais antigo; nas séries vale o ano do
+  primeiro episódio com a pessoa). Aparições como “si mesmo” (talk shows, premiações) ficam de fora.
+- **Explorar** (`/explorar?genero=acao&secao=animes&ordem=nota`) — títulos de um gênero com filtro
+  Tudo · Filmes · Séries · Animes, ordenação (popularidade, nota ou mais recentes) e rolagem
+  infinita. A seção e a ordem ficam na URL, para compartilhar o link; sem gênero, a página lista
+  todos os gêneros.
 - **Ordenação** — “Outras obras”, “Parecidos” e a filmografia vêm ordenados pela **nota do TMDB**,
   com opção de ordenar por popularidade (total de votos), mais recentes ou, em “Parecidos”, mais
   parecidos. Títulos com menos de 50 votos vão para o fim e aparecem sem nota (uma nota 10 com dois
@@ -268,6 +283,7 @@ src/
 │   ├── account/         # Liga a sessão à biblioteca: menu da conta, logout e junção de dados
 │   ├── title/           # Página de detalhes do título
 │   ├── person/          # Página da pessoa (elenco, direção, autores)
+│   ├── explore/         # Página "Explorar" (títulos por gênero)
 │   └── home/            # Página inicial
 ├── domain/              # Tipos e regras de negócio puros (sem React/Next), com schemas Zod
 ├── server/              # Código exclusivo do servidor

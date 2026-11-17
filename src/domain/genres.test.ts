@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { toCanonicalGenres, toTmdbGenreIds } from './genres';
+import { CANONICAL_GENRES, toCanonicalGenres, toTmdbGenreIds } from './genres';
+import { MEDIA_TYPES } from './media';
 
 describe('toCanonicalGenres', () => {
   it('unifica os gêneros de filmes e de séries', () => {
@@ -23,5 +24,15 @@ describe('toTmdbGenreIds', () => {
 
   it('devolve lista vazia quando o tipo não tem o gênero', () => {
     expect(toTmdbGenreIds('horror', 'tv')).toEqual([]);
+  });
+
+  it('cada gênero corresponde a no máximo um ID por tipo', () => {
+    // O `/discover` junta os gêneros com vírgula (E lógico): com dois IDs para o mesmo gênero,
+    // a busca exigiria os dois. Se isso mudar, a consulta precisa passar a usar "|" (OU).
+    for (const genre of CANONICAL_GENRES) {
+      for (const mediaType of MEDIA_TYPES) {
+        expect(toTmdbGenreIds(genre, mediaType).length).toBeLessThanOrEqual(1);
+      }
+    }
   });
 });

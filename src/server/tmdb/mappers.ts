@@ -15,7 +15,9 @@ import {
   type CreditRole,
   type PersonCredit,
   type PersonDetails,
+  type PersonGender,
 } from '@/domain/person';
+import type { EpisodeAiring, TitleStatus } from '@/domain/title-status';
 import { uniqueBy } from '@/lib/array';
 
 import { MAX_CAST_MEMBERS, MAX_KEYWORDS, ORIGINAL_WORK_JOBS, TMDB_REGION } from './config';
@@ -24,16 +26,19 @@ import type {
   TmdbCastMember,
   TmdbCombinedCredits,
   TmdbCrewMember,
+  TmdbEpisodeAiring,
   TmdbKeywordsResponse,
   TmdbListItem,
   TmdbMovieDetails,
   TmdbMovieListItem,
+  TmdbMovieStatus,
   TmdbMultiSearchItem,
   TmdbPersonCastCredit,
   TmdbPersonCrewCredit,
   TmdbPersonDetails,
   TmdbTvDetails,
   TmdbTvListItem,
+  TmdbTvStatus,
   TmdbVideo,
   TmdbWatchProvider,
   TmdbWatchProviderRegion,
@@ -115,6 +120,11 @@ export function mapMovieDetails(raw: TmdbMovieDetails): MediaDetails {
     trailerYoutubeKey: pickTrailerKey(raw.videos?.results),
     watchProviders: mapWatchProviders(raw['watch/providers']?.results?.[TMDB_REGION]),
     recommendations: (raw.recommendations?.results ?? []).map(mapMovieListItem),
+    status: mapTitleStatus(raw.status),
+    releaseDate: raw.release_date || null,
+    episodeCount: null,
+    lastEpisode: null,
+    nextEpisode: null,
   };
 }
 
@@ -139,6 +149,37 @@ export function mapTvDetails(raw: TmdbTvDetails): MediaDetails {
     trailerYoutubeKey: pickTrailerKey(raw.videos?.results),
     watchProviders: mapWatchProviders(raw['watch/providers']?.results?.[TMDB_REGION]),
     recommendations: (raw.recommendations?.results ?? []).map(mapTvListItem),
+    status: mapTitleStatus(raw.status),
+    releaseDate: raw.first_air_date || null,
+    episodeCount: raw.number_of_episodes || null,
+    lastEpisode: mapEpisodeAiring(raw.last_episode_to_air),
+    nextEpisode: mapEpisodeAiring(raw.next_episode_to_air),
+  };
+}
+
+const TITLE_STATUSES: Readonly<Record<TmdbMovieStatus | TmdbTvStatus, TitleStatus>> = {
+  Rumored: 'rumored',
+  Planned: 'planned',
+  'In Production': 'in-production',
+  'Post Production': 'post-production',
+  Pilot: 'pilot',
+  Released: 'released',
+  'Returning Series': 'returning',
+  Ended: 'ended',
+  Canceled: 'canceled',
+};
+
+/** Situação do TMDB → situação do domínio; valores desconhecidos ficam de fora (`null`). */
+export function mapTitleStatus(status: string | undefined): TitleStatus | null {
+  return (status && TITLE_STATUSES[status as keyof typeof TITLE_STATUSES]) || null;
+}
+
+function mapEpisodeAiring(episode: TmdbEpisodeAiring | null | undefined): EpisodeAiring | null {
+  if (!episode) return null;
+  return {
+    seasonNumber: episode.season_number,
+    episodeNumber: episode.episode_number,
+    airDate: episode.air_date || null,
   };
 }
 
@@ -217,6 +258,13 @@ const DEPARTMENT_LABELS: Readonly<Record<string, string>> = {
   Crew: 'Equipe técnica',
 };
 
+/** Códigos de gênero do TMDB (0 = não informado). */
+const GENDERS: Readonly<Record<number, PersonGender>> = {
+  1: 'female',
+  2: 'male',
+  3: 'non-binary',
+};
+
 export function mapPersonDetails(raw: TmdbPersonDetails): PersonDetails {
   return {
     id: raw.id,
@@ -225,6 +273,7 @@ export function mapPersonDetails(raw: TmdbPersonDetails): PersonDetails {
     profilePath: raw.profile_path ?? null,
     biography: raw.biography?.trim() ?? '',
     knownFor: DEPARTMENT_LABELS[raw.known_for_department ?? ''] ?? null,
+    gender: GENDERS[raw.gender ?? 0] ?? null,
     birthday: raw.birthday || null,
     deathday: raw.deathday || null,
     placeOfBirth: raw.place_of_birth || null,
@@ -252,6 +301,15 @@ function cleanCharacter(character: string | undefined): string {
     .trim();
 }
 
+/** Filmes: a estreia. Séries: o primeiro episódio com a pessoa, ou a estreia da série. */
+function creditDate(credit: TmdbPersonCastCredit | TmdbPersonCrewCredit): string | null {
+  const date =
+    credit.media_type === 'movie'
+      ? credit.release_date
+      : credit.first_credit_air_date || credit.first_air_date;
+  return date || null;
+}
+
 function crewRole(credit: TmdbPersonCrewCredit): CreditRole | null {
   // Em séries, "Director" é a direção de episódios avulsos: não conta como obra da pessoa.
   if (credit.media_type === 'movie' && credit.job === 'Director') return 'direction';
@@ -270,10 +328,14 @@ export function mapPersonCredits(credits: TmdbCombinedCredits): PersonCredit[] {
   const creditFor = (item: TmdbPersonCastCredit | TmdbPersonCrewCredit): PersonCredit => {
     const media = item.media_type === 'movie' ? mapMovieListItem(item) : mapTvListItem(item);
     const key = getMediaKey(media);
+    const date = creditDate(item);
     let credit = byTitle.get(key);
     if (!credit) {
-      credit = { media, roles: [], characters: [], episodeCount: null };
+      credit = { media, roles: [], date, characters: [], episodeCount: null };
       byTitle.set(key, credit);
+    } else if (date && (!credit.date || date < credit.date)) {
+      // Vários créditos no mesmo título: vale a primeira participação.
+      credit.date = date;
     }
     return credit;
   };

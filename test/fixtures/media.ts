@@ -37,6 +37,11 @@ export function buildDetails(overrides: Partial<MediaDetails> = {}): MediaDetail
     trailerYoutubeKey = null,
     watchProviders = null,
     recommendations = [],
+    status = 'released',
+    releaseDate = null,
+    episodeCount = null,
+    lastEpisode = null,
+    nextEpisode = null,
     ...summary
   } = overrides;
 
@@ -54,5 +59,10 @@ export function buildDetails(overrides: Partial<MediaDetails> = {}): MediaDetail
     trailerYoutubeKey,
     watchProviders,
     recommendations,
+    status,
+    releaseDate,
+    episodeCount,
+    lastEpisode,
+    nextEpisode,
   };
 }

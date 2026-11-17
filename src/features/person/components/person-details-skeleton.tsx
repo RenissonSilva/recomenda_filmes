@@ -10,14 +10,24 @@ export function PersonDetailsSkeleton() {
         <div className="flex flex-col gap-4">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="h-10 w-2/3" />
-          <Skeleton className="h-4 w-72 max-w-full" />
+          <div className="grid max-w-3xl grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-32 max-w-full" />
+              </div>
+            ))}
+          </div>
           <Skeleton className="h-4 w-full max-w-3xl" />
           <Skeleton className="h-4 w-full max-w-3xl" />
           <Skeleton className="h-4 w-2/3 max-w-3xl" />
         </div>
       </div>
       <div className="flex flex-col gap-5">
-        <Skeleton className="h-7 w-40" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-10 w-56 rounded-full" />
+        </div>
         <Skeleton className="h-10 w-80 max-w-full rounded-full" />
         <MediaGridSkeleton count={12} />
       </div>

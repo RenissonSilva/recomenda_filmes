@@ -18,7 +18,9 @@ import {
 } from '@/domain/media';
 import type { Paginated } from '@/domain/pagination';
 import { getWorksByRoles, hasLatinScript, type PersonDetails } from '@/domain/person';
+import type { DiscoverSort } from '@/domain/title-sort';
 import { interleave, uniqueBy } from '@/lib/array';
+import { getTodayIsoDate } from '@/lib/format';
 
 import { TmdbRequestError } from '../errors';
 import { tmdbGet, type TmdbQuery } from './client';
@@ -81,27 +83,73 @@ const DISCOVER_SOURCES: Record<MediaFilter, readonly DiscoverSource[]> = {
 const TOP_RATED_MIN_VOTES: Record<MediaType, number> = { movie: 1000, tv: 300 };
 
 /**
- * Títulos mais votados do TMDB — os mais prováveis de o usuário já ter assistido.
- * Em "Filmes" e "Séries" os animes são removidos (eles têm a própria seção), por isso
- * algumas páginas podem vir com menos itens.
+ * Mínimo de votos nas ordenações por nota e por data. Sem ele, a lista começa com títulos
+ * obscuros (nota 10 com dois votos, lançamentos sem pôster nem sinopse).
  */
-export async function discoverPopularTitles(
+const DISCOVER_MIN_VOTES: Record<Exclude<DiscoverSort, 'popularity'>, Record<MediaType, number>> = {
+  rating: { movie: 300, tv: 150 },
+  recent: { movie: 50, tv: 20 },
+};
+
+/** Parâmetros do `/discover` para cada ordenação. */
+function sortQuery(sort: DiscoverSort, mediaType: MediaType): TmdbQuery {
+  switch (sort) {
+    // Total de votos: os mais assistidos, e não os que estão em alta hoje.
+    case 'popularity':
+      return { sort_by: 'vote_count.desc' };
+    case 'rating':
+      return {
+        sort_by: 'vote_average.desc',
+        'vote_count.gte': DISCOVER_MIN_VOTES.rating[mediaType],
+      };
+    case 'recent': {
+      // Só o que já estreou: o TMDB também cadastra lançamentos futuros.
+      const dateField = mediaType === 'movie' ? 'primary_release_date' : 'first_air_date';
+      return {
+        sort_by: `${dateField}.desc`,
+        [`${dateField}.lte`]: getTodayIsoDate(),
+        'vote_count.gte': DISCOVER_MIN_VOTES.recent[mediaType],
+      };
+    }
+  }
+}
+
+export interface DiscoverOptions {
+  /** Só títulos deste gênero. */
+  genre?: CanonicalGenre;
+  sort?: DiscoverSort;
+}
+
+/**
+ * Títulos da seção, por padrão os mais votados do TMDB (os mais prováveis de o usuário já ter
+ * assistido). Em "Filmes" e "Séries" os animes são removidos (eles têm a própria seção), por isso
+ * algumas páginas podem vir com menos itens. Com `genre`, as fontes que não têm o gênero
+ * (ex.: "Terror" em séries) são ignoradas.
+ */
+export async function discoverTitles(
   filter: MediaFilter,
   page: number,
+  { genre, sort = 'popularity' }: DiscoverOptions = {},
 ): Promise<Paginated<MediaSummary>> {
   'use cache';
   cacheLife('days');
 
   const pages = await Promise.all(
-    DISCOVER_SOURCES[filter].map((source) =>
-      discoverPage(source, { sort_by: 'vote_count.desc', page }),
-    ),
+    DISCOVER_SOURCES[filter].map((source) => {
+      // Cada gênero canônico corresponde a no máximo um ID por tipo (ver `genres.test.ts`).
+      const genreIds = genre ? toTmdbGenreIds(genre, source.mediaType) : [];
+      if (genre && genreIds.length === 0) return null;
+
+      return discoverPage(source, { ...sortQuery(sort, source.mediaType), page }, genreIds);
+    }),
   );
+  const results = pages.filter((result) => result !== null);
 
   return {
     page,
-    totalPages: Math.min(...pages.map((result) => result.totalPages)),
-    items: interleave(...pages.map((result) => result.items)).filter((media) =>
+    // Uma fonte que acabou antes devolve páginas vazias; as outras continuam.
+    totalPages: Math.max(0, ...results.map((result) => result.totalPages)),
+    items: interleave(...results.map((result) => result.items)).filter((media) =>
       matchesFilter(media, filter),
     ),
   };

@@ -6,6 +6,7 @@ import {
   mapMultiSearchItems,
   mapPersonCredits,
   mapPersonDetails,
+  mapTitleStatus,
   mapTvDetails,
   mapWatchProviders,
   parseReleaseYear,
@@ -172,6 +173,47 @@ describe('mapTvDetails', () => {
   });
 });
 
+describe('situação do título', () => {
+  it('converte a situação e a estreia de um filme', () => {
+    expect(mapMovieDetails({ ...interstellar, status: 'Released' })).toMatchObject({
+      status: 'released',
+      releaseDate: '2014-11-04',
+      episodeCount: null,
+      lastEpisode: null,
+      nextEpisode: null,
+    });
+  });
+
+  it('converte a situação, os episódios e a agenda de uma série', () => {
+    const details = mapTvDetails({
+      ...breakingBad,
+      status: 'Returning Series',
+      number_of_episodes: 62,
+      last_episode_to_air: { season_number: 3, episode_number: 8, air_date: '2026-08-09' },
+      next_episode_to_air: { season_number: 4, episode_number: 1, air_date: '' },
+    });
+
+    expect(details).toMatchObject({
+      status: 'returning',
+      releaseDate: '2008-01-20',
+      episodeCount: 62,
+      lastEpisode: { seasonNumber: 3, episodeNumber: 8, airDate: '2026-08-09' },
+      nextEpisode: { seasonNumber: 4, episodeNumber: 1, airDate: null },
+    });
+  });
+
+  it('normaliza todas as situações conhecidas e descarta as desconhecidas', () => {
+    expect(mapTitleStatus('Ended')).toBe('ended');
+    expect(mapTitleStatus('Canceled')).toBe('canceled');
+    expect(mapTitleStatus('In Production')).toBe('in-production');
+    expect(mapTitleStatus('Post Production')).toBe('post-production');
+    expect(mapTitleStatus('Rumored')).toBe('rumored');
+    expect(mapTitleStatus('Pilot')).toBe('pilot');
+    expect(mapTitleStatus('Algo novo')).toBeNull();
+    expect(mapTitleStatus(undefined)).toBeNull();
+  });
+});
+
 describe('mapMultiSearchItems', () => {
   it('mantém filmes e séries e descarta pessoas', () => {
     const items = mapMultiSearchItems([
@@ -215,6 +257,8 @@ describe('mapPersonCredits', () => {
         character: 'Joel Miller',
         episode_count: 12,
         vote_count: 7000,
+        first_air_date: '2023-01-15',
+        first_credit_air_date: '2023-01-15',
       },
       {
         media_type: 'tv',
@@ -254,6 +298,17 @@ describe('mapPersonCredits', () => {
         title: 'Os Imperdoáveis',
         character: 'William Munny',
         vote_count: 5000,
+        release_date: '1992-08-07',
+      },
+      {
+        media_type: 'tv',
+        id: 10,
+        name: 'O Mentalista',
+        character: 'Marcus Pike',
+        episode_count: 7,
+        vote_count: 3000,
+        first_air_date: '2008-09-23',
+        first_credit_air_date: '2014-03-30',
       },
     ],
     crew: [
@@ -269,6 +324,7 @@ describe('mapPersonCredits', () => {
     expect(credits.map((credit) => [credit.media.id, credit.roles])).toEqual([
       [1, ['cast']],
       [6, ['cast', 'direction']],
+      [10, ['cast']],
       [8, ['creation']],
       [9, ['original-work']],
       [2, ['cast']],
@@ -290,6 +346,14 @@ describe('mapPersonCredits', () => {
     expect(credits[0]).toMatchObject({ characters: ['Joel Miller'], episodeCount: 12 });
     expect(credits.find((credit) => credit.media.id === 2)?.characters).toEqual(['Pedro (voz)']);
   });
+
+  it('data a participação pelo lançamento do filme ou pelo primeiro episódio com a pessoa', () => {
+    const dateOf = (id: number) => credits.find((credit) => credit.media.id === id)?.date;
+    expect(dateOf(6)).toBe('1992-08-07');
+    expect(dateOf(10)).toBe('2014-03-30');
+    expect(dateOf(1)).toBe('2023-01-15');
+    expect(dateOf(2)).toBeNull();
+  });
 });
 
 describe('mapPersonDetails', () => {
@@ -301,7 +365,21 @@ describe('mapPersonDetails', () => {
         known_for_department: 'Acting',
         birthday: '',
       }),
-    ).toMatchObject({ name: 'Pedro Pascal', knownFor: 'Atuação', birthday: null, credits: [] });
+    ).toMatchObject({
+      name: 'Pedro Pascal',
+      knownFor: 'Atuação',
+      gender: null,
+      birthday: null,
+      credits: [],
+    });
+  });
+
+  it('converte o código de gênero do TMDB', () => {
+    const genderOf = (gender: number) => mapPersonDetails({ id: 1, name: 'X', gender }).gender;
+    expect(genderOf(1)).toBe('female');
+    expect(genderOf(2)).toBe('male');
+    expect(genderOf(3)).toBe('non-binary');
+    expect(genderOf(0)).toBeNull();
   });
 });
 

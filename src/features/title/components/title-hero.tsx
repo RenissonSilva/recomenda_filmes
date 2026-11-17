@@ -5,10 +5,13 @@ import { MediaPoster } from '@/components/media/media-poster';
 import { TmdbImage } from '@/components/media/tmdb-image';
 import { Badge } from '@/components/ui/badge';
 import { getMediaLabel, toMediaSummary, type MediaDetails } from '@/domain/media';
+import { getTitleStatusBadge } from '@/domain/title-status';
 import { PersonLinkList } from '@/features/person/components/person-link-list';
 import { formatRuntime, formatVoteAverage, pluralize } from '@/lib/format';
 
 import { TitleActions } from './title-actions';
+import { TitleGenreLinks } from './title-genre-links';
+import { buildTitleStatusDetails, TitleStatusBadge } from './title-status';
 
 function buildFacts(details: MediaDetails): string[] {
   const duration =
@@ -19,8 +22,16 @@ function buildFacts(details: MediaDetails): string[] {
   return [getMediaLabel(details), details.releaseYear, duration].filter(Boolean).map(String);
 }
 
-export function TitleHero({ details }: { details: MediaDetails }) {
+interface TitleHeroProps {
+  details: MediaDetails;
+  /** Data de hoje ("2026-11-17"): define a situação de séries e a agenda de episódios. */
+  today: string;
+}
+
+export function TitleHero({ details, today }: TitleHeroProps) {
   const creatorsLabel = details.mediaType === 'movie' ? 'Direção' : 'Criação';
+  const statusBadge = getTitleStatusBadge(details, today);
+  const statusDetails = buildTitleStatusDetails(details, today);
 
   return (
     <section className="relative isolate">
@@ -57,16 +68,20 @@ export function TitleHero({ details }: { details: MediaDetails }) {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {details.voteAverage > 0 && (
-              <Badge variant="brand">
-                <Star aria-hidden fill="currentColor" />
-                {formatVoteAverage(details.voteAverage)} no TMDB
-              </Badge>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              {details.voteAverage > 0 && (
+                <Badge variant="brand">
+                  <Star aria-hidden fill="currentColor" />
+                  {formatVoteAverage(details.voteAverage)} no TMDB
+                </Badge>
+              )}
+              {statusBadge && <TitleStatusBadge badge={statusBadge} />}
+              <TitleGenreLinks media={details} />
+            </div>
+            {statusDetails.length > 0 && (
+              <p className="text-sm text-fg-muted">{statusDetails.join(' · ')}</p>
             )}
-            {details.genres.map((genre) => (
-              <Badge key={genre.id}>{genre.name}</Badge>
-            ))}
           </div>
 
           {details.tagline && <p className="text-fg-muted italic">“{details.tagline}”</p>}

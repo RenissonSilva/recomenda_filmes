@@ -8,6 +8,7 @@ import {
   formatRuntime,
   formatVoteAverage,
   getInitials,
+  getTodayIsoDate,
   pluralize,
 } from './format';
 import { hashString } from './hash';
@@ -73,6 +74,7 @@ describe('format', () => {
     expect(formatList(['Duna', 'Dark', 'Arcane'])).toBe('Duna, Dark e Arcane');
     expect(pluralize(1, 'título', 'títulos')).toBe('1 título');
     expect(pluralize(3, 'título', 'títulos')).toBe('3 títulos');
+    expect(pluralize(1180, 'episódio', 'episódios')).toBe('1.180 episódios');
     expect(getInitials('Ana Maria Souza')).toBe('AS');
     expect(getInitials('  ana ')).toBe('A');
     expect(getInitials('')).toBe('');
@@ -81,6 +83,12 @@ describe('format', () => {
   it('formata datas do TMDB sem depender do fuso horário', () => {
     expect(formatDate('1975-04-02')).toBe('2 de abril de 1975');
     expect(formatDate('')).toBeNull();
+  });
+
+  it('calcula o dia de hoje no fuso do Brasil', () => {
+    // 01h em UTC ainda é o dia anterior em Brasília (UTC-3).
+    expect(getTodayIsoDate(new Date('2026-04-02T01:00:00Z'))).toBe('2026-04-01');
+    expect(getTodayIsoDate(new Date('2026-04-02T15:00:00Z'))).toBe('2026-04-02');
   });
 });
 
