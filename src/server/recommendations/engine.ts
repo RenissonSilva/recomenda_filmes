@@ -19,6 +19,7 @@ import type {
 import { mapWithConcurrency } from '@/lib/async';
 
 import { TmdbRequestError } from '../errors';
+import { withTmdbFallback } from '../tmdb/fallback';
 import { collectCandidates, creatorLinks, recommendationLinks } from './candidates';
 import { RECOMMENDER_CONFIG } from './config';
 import { contentSimilarity, extractFeatures, featureKeys, vectorize } from './features';
@@ -131,16 +132,6 @@ async function loadSeeds(
   // Falhas pontuais são toleradas; se nenhuma semente carregou, o erro é real.
   if (seeds.length === 0 && firstError) throw firstError;
   return seeds;
-}
-
-/** Consultas opcionais: uma falha temporária do TMDB vira `fallback` em vez de interromper tudo. */
-async function withTmdbFallback<T>(load: () => Promise<T>, fallback: T): Promise<T> {
-  try {
-    return await load();
-  } catch (error) {
-    if (error instanceof TmdbRequestError) return fallback;
-    throw error;
-  }
 }
 
 /**

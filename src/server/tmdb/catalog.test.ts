@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { discoverPopularTitles, discoverTopRatedByGenres, searchTitles } from './catalog';
+import { TmdbRequestError } from '../errors';
+import {
+  discoverByKeywords,
+  discoverPopularTitles,
+  discoverTopRatedByGenres,
+  getPersonDetails,
+  searchTitles,
+} from './catalog';
 import { tmdbGet } from './client';
 import type { TmdbListItem, TmdbMultiSearchItem, TmdbPaginated } from './types';
 
@@ -144,6 +151,42 @@ describe('catálogo do TMDB', () => {
 
       expect(items).toEqual([]);
       expect(tmdbGet).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('discoverByKeywords', () => {
+    it('busca os títulos com qualquer uma das palavras-chave e respeita a seção', async () => {
+      mockTmdb({ '/discover/movie': page([movie(1), movie(2, [ANIMATION], 'ja')]) });
+
+      const items = await discoverByKeywords('movie', [30, 7]);
+
+      // O filme de anime fica para a seção "Animes".
+      expect(idsOf(items)).toEqual(['movie:1']);
+      expect(queryOf('/discover/movie')).toMatchObject({
+        with_keywords: '7|30',
+        sort_by: 'vote_count.desc',
+      });
+    });
+  });
+
+  describe('getPersonDetails', () => {
+    it('troca o nome em outro alfabeto pela versão latina', async () => {
+      vi.mocked(tmdbGet).mockImplementation(async (_path, query) => ({
+        id: 1,
+        name: query?.language === 'en-US' ? 'Hajime Isayama' : '諫山創',
+        combined_credits: { crew: [] },
+      }));
+
+      expect(await getPersonDetails(1)).toMatchObject({
+        name: 'Hajime Isayama',
+        originalName: '諫山創',
+      });
+    });
+
+    it('devolve null quando a pessoa não existe', async () => {
+      vi.mocked(tmdbGet).mockRejectedValue(new TmdbRequestError(404, '/person/1'));
+
+      expect(await getPersonDetails(1)).toBeNull();
     });
   });
 });

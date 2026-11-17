@@ -29,10 +29,6 @@ const TABS: ReadonlyArray<{ value: RatingTab; label: string }> = [
   { value: 'unseen', label: UNSEEN_LABEL },
 ];
 
-function TabCount({ count }: { count: number }) {
-  return <span className="text-xs tabular-nums opacity-60">{count}</span>;
-}
-
 /** Tela "Minhas avaliações". */
 export function RatedTitlesView() {
   const hydrated = useLibraryHydrated();
@@ -90,7 +86,7 @@ export function RatedTitlesView() {
           label="Filtrar por avaliação"
           options={TABS.map((option) => ({
             ...option,
-            suffix: <TabCount count={counts[option.value]} />,
+            count: counts[option.value],
           }))}
           value={tab}
           onChange={setTab}

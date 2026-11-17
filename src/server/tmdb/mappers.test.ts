@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  mapCreatorWorks,
+  mapAggregateOriginalAuthors,
   mapMovieDetails,
   mapMultiSearchItems,
+  mapPersonCredits,
+  mapPersonDetails,
   mapTvDetails,
   mapWatchProviders,
   parseReleaseYear,
@@ -203,21 +205,136 @@ describe('pickTrailerKey / mapWatchProviders', () => {
   });
 });
 
-describe('mapCreatorWorks', () => {
-  it('mantém só filmes dirigidos e séries criadas, dos mais aos menos votados', () => {
-    const works = mapCreatorWorks({
-      crew: [
-        { media_type: 'movie', id: 1, title: 'Produzido', job: 'Producer', vote_count: 9000 },
-        { media_type: 'movie', id: 2, title: 'Dirigido', job: 'Director', vote_count: 100 },
-        { media_type: 'tv', id: 3, name: 'Criada', job: 'Creator', vote_count: 500 },
-        { media_type: 'tv', id: 4, name: 'Episódio dirigido', job: 'Director', vote_count: 800 },
-        { media_type: 'movie', id: 2, title: 'Dirigido', job: 'Director', vote_count: 100 },
-      ],
+describe('mapPersonCredits', () => {
+  const credits = mapPersonCredits({
+    cast: [
+      {
+        media_type: 'tv',
+        id: 1,
+        name: 'The Last of Us',
+        character: 'Joel Miller',
+        episode_count: 12,
+        vote_count: 7000,
+      },
+      {
+        media_type: 'tv',
+        id: 1,
+        name: 'The Last of Us',
+        character: 'Joel Miller (uncredited)',
+        episode_count: 1,
+        vote_count: 7000,
+      },
+      {
+        media_type: 'movie',
+        id: 2,
+        title: 'Divertida Mente',
+        character: 'Pedro (voice)',
+        vote_count: 300,
+      },
+      { media_type: 'tv', id: 3, name: 'Talk show', character: 'Self - Guest', vote_count: 9000 },
+      {
+        media_type: 'tv',
+        id: 4,
+        name: 'Programa de entrevistas',
+        character: 'Entrevistado',
+        genre_ids: [10767],
+        vote_count: 9000,
+      },
+      {
+        media_type: 'movie',
+        id: 5,
+        title: 'Adulto',
+        character: 'Alguém',
+        adult: true,
+        vote_count: 9000,
+      },
+      {
+        media_type: 'movie',
+        id: 6,
+        title: 'Os Imperdoáveis',
+        character: 'William Munny',
+        vote_count: 5000,
+      },
+    ],
+    crew: [
+      { media_type: 'movie', id: 6, title: 'Os Imperdoáveis', job: 'Director', vote_count: 5000 },
+      { media_type: 'movie', id: 6, title: 'Os Imperdoáveis', job: 'Producer', vote_count: 5000 },
+      { media_type: 'tv', id: 7, name: 'Episódio dirigido', job: 'Director', vote_count: 800 },
+      { media_type: 'tv', id: 8, name: 'Criada', job: 'Creator', vote_count: 500 },
+      { media_type: 'tv', id: 9, name: 'Anime', job: 'Comic Book', vote_count: 400 },
+    ],
+  });
+
+  it('junta elenco e equipe em um item por título, dos mais aos menos votados', () => {
+    expect(credits.map((credit) => [credit.media.id, credit.roles])).toEqual([
+      [1, ['cast']],
+      [6, ['cast', 'direction']],
+      [8, ['creation']],
+      [9, ['original-work']],
+      [2, ['cast']],
+    ]);
+  });
+
+  it('remove aparições como "si mesmo", programas de entrevista e conteúdo adulto', () => {
+    const ids = credits.map((credit) => credit.media.id);
+    expect(ids).not.toContain(3);
+    expect(ids).not.toContain(4);
+    expect(ids).not.toContain(5);
+  });
+
+  it('ignora a direção de episódios avulsos de séries', () => {
+    expect(credits.map((credit) => credit.media.id)).not.toContain(7);
+  });
+
+  it('limpa os personagens e guarda o número de episódios', () => {
+    expect(credits[0]).toMatchObject({ characters: ['Joel Miller'], episodeCount: 12 });
+    expect(credits.find((credit) => credit.media.id === 2)?.characters).toEqual(['Pedro (voz)']);
+  });
+});
+
+describe('mapPersonDetails', () => {
+  it('traduz a área de atuação e tolera campos vazios', () => {
+    expect(
+      mapPersonDetails({
+        id: 1,
+        name: 'Pedro Pascal',
+        known_for_department: 'Acting',
+        birthday: '',
+      }),
+    ).toMatchObject({ name: 'Pedro Pascal', knownFor: 'Atuação', birthday: null, credits: [] });
+  });
+});
+
+describe('autores da obra original', () => {
+  it('vêm da equipe de roteiro, sem duplicar', () => {
+    const details = mapTvDetails({
+      ...breakingBad,
+      credits: {
+        crew: [
+          { id: 10, name: 'Hajime Isayama', job: 'Comic Book' },
+          { id: 10, name: 'Hajime Isayama', job: 'Original Concept' },
+          { id: 11, name: 'Hiroshi Seko', job: 'Series Composition' },
+        ],
+      },
     });
 
-    expect(works.map((work) => [work.mediaType, work.title])).toEqual([
-      ['tv', 'Criada'],
-      ['movie', 'Dirigido'],
+    expect(details.originalAuthors).toEqual([
+      { id: 10, name: 'Hajime Isayama', profilePath: null, role: 'Obra original' },
     ]);
+  });
+
+  it('são encontrados nos créditos de todas as temporadas', () => {
+    expect(
+      mapAggregateOriginalAuthors({
+        crew: [
+          {
+            id: 20,
+            name: 'Eiichiro Oda',
+            jobs: [{ job: 'Original Concept' }, { job: 'Comic Book' }],
+          },
+          { id: 21, name: 'Roteirista', jobs: [{ job: 'Writer' }] },
+        ],
+      }).map((person) => person.name),
+    ).toEqual(['Eiichiro Oda']);
   });
 });

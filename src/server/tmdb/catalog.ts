@@ -7,31 +7,39 @@ import {
   ANIME_CRITERIA,
   getMediaKey,
   matchesFilter,
+  MEDIA_TYPES,
+  type Keyword,
   type MediaCategory,
   type MediaDetails,
   type MediaFilter,
   type MediaSummary,
   type MediaType,
+  type Person,
 } from '@/domain/media';
 import type { Paginated } from '@/domain/pagination';
+import { getWorksByRoles, hasLatinScript, type PersonDetails } from '@/domain/person';
 import { interleave, uniqueBy } from '@/lib/array';
 
 import { TmdbRequestError } from '../errors';
 import { tmdbGet, type TmdbQuery } from './client';
-import { TMDB_MAX_PAGE, TMDB_VIDEO_LANGUAGES } from './config';
+import { TMDB_LATIN_NAME_LANGUAGE, TMDB_MAX_PAGE, TMDB_VIDEO_LANGUAGES } from './config';
 import {
-  mapCreatorWorks,
+  mapAggregateOriginalAuthors,
+  mapKeywords,
   mapListItem,
   mapMovieDetails,
   mapMultiSearchItems,
+  mapPersonDetails,
   mapTvDetails,
 } from './mappers';
 import type {
-  TmdbCombinedCredits,
+  TmdbAggregateCredits,
+  TmdbKeywordsResponse,
   TmdbListItem,
   TmdbMovieDetails,
   TmdbMultiSearchItem,
   TmdbPaginated,
+  TmdbPersonDetails,
   TmdbTvDetails,
 } from './types';
 
@@ -185,14 +193,110 @@ export async function discoverTopRatedByGenres(
   return interleave(...lists);
 }
 
-/** Filmes dirigidos e séries criadas pela pessoa, dos mais aos menos votados. */
-export async function getCreatorWorks(personId: number): Promise<MediaSummary[]> {
+/**
+ * Dados e filmografia de uma pessoa, ou `null` se ela não existir no TMDB.
+ * Nomes que vêm em outro alfabeto (ex.: japonês) são trocados pela versão latina.
+ */
+export async function getPersonDetails(personId: number): Promise<PersonDetails | null> {
   'use cache';
   cacheLife('weeks');
 
-  return mapCreatorWorks(
-    await tmdbGet<TmdbCombinedCredits>(`/person/${personId}/combined_credits`),
+  let person: PersonDetails;
+  try {
+    person = mapPersonDetails(
+      await tmdbGet<TmdbPersonDetails>(`/person/${personId}`, {
+        append_to_response: 'combined_credits',
+      }),
+    );
+  } catch (error) {
+    if (error instanceof TmdbRequestError && error.isNotFound) return null;
+    throw error;
+  }
+
+  if (hasLatinScript(person.name)) return person;
+  const latinName = await getLatinPersonName(personId);
+  return latinName ? { ...person, name: latinName, originalName: person.name } : person;
+}
+
+/** Filmes dirigidos e séries criadas pela pessoa, dos mais aos menos votados. */
+export async function getCreatorWorks(personId: number): Promise<MediaSummary[]> {
+  const person = await getPersonDetails(personId);
+  return person ? getWorksByRoles(person.credits, ['direction', 'creation']) : [];
+}
+
+/**
+ * Autores da obra original de uma série considerando todas as temporadas. Os créditos comuns
+ * trazem só a equipe da temporada mais recente, e às vezes o autor do mangá fica de fora
+ * (ex.: One Piece).
+ */
+export async function getTvOriginalAuthors(tvId: number): Promise<Person[]> {
+  'use cache';
+  cacheLife('weeks');
+
+  return mapAggregateOriginalAuthors(
+    await tmdbGet<TmdbAggregateCredits>(`/tv/${tvId}/aggregate_credits`),
   );
+}
+
+/** Palavras-chave (temas da trama) de um título, sem carregar os detalhes completos. */
+export async function getTitleKeywords(mediaType: MediaType, id: number): Promise<Keyword[]> {
+  'use cache';
+  cacheLife('weeks');
+
+  return mapKeywords(await tmdbGet<TmdbKeywordsResponse>(`/${mediaType}/${id}/keywords`));
+}
+
+/**
+ * Em quantos títulos (filmes + séries) a palavra-chave aparece. Mede o quanto ela é específica:
+ * "buraco de minhoca" diz mais sobre a trama do que "amizade".
+ */
+export async function getKeywordFrequency(keywordId: number): Promise<number> {
+  'use cache';
+  cacheLife('weeks');
+
+  const pages = await Promise.all(
+    MEDIA_TYPES.map((mediaType) =>
+      tmdbGet<TmdbPaginated<TmdbListItem>>(`/discover/${mediaType}`, {
+        with_keywords: keywordId,
+        include_adult: false,
+      }),
+    ),
+  );
+  return pages.reduce((total, page) => total + page.total_results, 0);
+}
+
+/** Títulos mais votados da seção que têm PELO MENOS UMA das palavras-chave informadas. */
+export async function discoverByKeywords(
+  category: MediaCategory,
+  keywordIds: readonly number[],
+): Promise<MediaSummary[]> {
+  'use cache';
+  cacheLife('days');
+
+  if (keywordIds.length === 0) return [];
+
+  const lists = await Promise.all(
+    DISCOVER_SOURCES[category].map(async (source) => {
+      const { items } = await discoverPage(source, {
+        sort_by: 'vote_count.desc',
+        // Barra vertical = basta ter uma das palavras-chave.
+        with_keywords: sortedUnique(keywordIds).join('|'),
+        page: 1,
+      });
+      return items;
+    }),
+  );
+  return interleave(...lists).filter((media) => matchesFilter(media, category));
+}
+
+async function getLatinPersonName(personId: number): Promise<string | null> {
+  'use cache';
+  cacheLife('weeks');
+
+  const { name } = await tmdbGet<Pick<TmdbPersonDetails, 'name'>>(`/person/${personId}`, {
+    language: TMDB_LATIN_NAME_LANGUAGE,
+  });
+  return hasLatinScript(name) ? name : null;
 }
 
 /** Uma página do `/discover`; `extraGenreIds` são exigidos além do gênero da própria fonte. */

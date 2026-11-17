@@ -1,14 +1,12 @@
 'use client';
 
-import type { ReactNode } from 'react';
-
 import { cn } from '@/lib/cn';
 
 export interface SegmentedControlOption<T extends string> {
   value: T;
   label: string;
-  /** Conteúdo extra ao lado do rótulo, ex.: contador. */
-  suffix?: ReactNode;
+  /** Contador exibido ao lado do rótulo (leitores de tela ouvem "Filmes (42)"). */
+  count?: number;
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -44,6 +42,9 @@ export function SegmentedControl<T extends string>({
             key={option.value}
             type="button"
             aria-pressed={selected}
+            aria-label={
+              option.count === undefined ? undefined : `${option.label} (${option.count})`
+            }
             onClick={() => onChange(option.value)}
             className={cn(
               'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium focus-ring transition-colors',
@@ -51,7 +52,9 @@ export function SegmentedControl<T extends string>({
             )}
           >
             {option.label}
-            {option.suffix}
+            {option.count !== undefined && (
+              <span className="text-xs tabular-nums opacity-60">{option.count}</span>
+            )}
           </button>
         );
       })}

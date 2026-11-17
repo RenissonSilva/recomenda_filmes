@@ -17,7 +17,20 @@ Avalie filmes, séries e animes que você já assistiu e receba recomendações 
 - **Minhas avaliações** — tudo o que você avaliou, com abas por nota e filtro por seção; a nota pode
   ser trocada ou desfeita a qualquer momento.
 - **Quero ver** — lista de títulos guardados para depois.
-- **Página do título** — sinopse, elenco, direção, trailer e **onde assistir no Brasil**.
+- **Página do título** — sinopse, elenco, direção, trailer e **onde assistir no Brasil**, além de:
+  - **Outras obras de…** — o que mais o autor fez: a **direção** nos filmes, a **criação** nas
+    séries e o **autor do mangá/obra original** nos animes (ex.: _Attack on Titan_ → Hajime Isayama).
+  - **Parecidos com…** — filmes, séries e animes com **enredo e gênero** semelhantes, com o filtro
+    Tudo · Filmes · Séries · Animes (veja [Títulos parecidos](#títulos-parecidos)).
+  - **Quem curte… também curte** — as recomendações do próprio TMDB (o que já aparece aqui não se
+    repete em “Parecidos”).
+- **Página da pessoa** — clicando em alguém do elenco (ou da direção/criação): foto, biografia e a
+  filmografia em abas **Filmes · Séries · Animes**, com o personagem de cada título. Aparições como
+  “si mesmo” (talk shows, premiações) ficam de fora.
+- **Ordenação** — “Outras obras”, “Parecidos” e a filmografia vêm ordenados pela **nota do TMDB**,
+  com opção de ordenar por popularidade (total de votos), mais recentes ou, em “Parecidos”, mais
+  parecidos. Títulos com menos de 50 votos vão para o fim e aparecem sem nota (uma nota 10 com dois
+  votos não passa à frente dos clássicos).
 - **Conta opcional** — dá para usar tudo sem cadastro (os dados ficam no navegador). Quem cria
   conta — com **e-mail e senha** ou **Google** — tem as avaliações salvas no servidor e
   sincronizadas entre dispositivos. As avaliações feitas antes do login vão para a conta: sem
@@ -185,6 +198,25 @@ documentados, para facilitar a calibragem.
 - O cálculo é o mesmo em qualquer filtro (Tudo/Filmes/Séries/Animes): a % de um título não muda
   entre as abas.
 
+## Títulos parecidos
+
+A seção “Parecidos com…” compara o **conteúdo** das obras — enredo e gênero —, enquanto “Quem curte…
+também curte” usa o sinal colaborativo do TMDB. O cálculo fica em `src/server/similar-titles`:
+
+1. **Especificidade das palavras-chave:** as palavras-chave da trama do título (ex.: _buraco de
+   minhoca_, _viagem no tempo_) são pesadas pela raridade no TMDB inteiro — em quantos títulos cada
+   uma aparece. _Buraco de minhoca_ diz mais sobre a história do que _amizade_.
+2. **Candidatos** de todas as seções: os mais votados que têm as palavras-chave mais específicas, os
+   mais bem avaliados dos mesmos gêneros e as recomendações do TMDB.
+3. **Pré-seleção** por gênero, idioma e época (com bônus para quem divide uma palavra-chave rara).
+4. **Comparação final:** similaridade do cosseno com pesos TF-IDF, em que o enredo (palavras-chave)
+   vale 65% e o gênero 35%. Só entram títulos acima de um mínimo de semelhança — por isso a seção
+   pode não ter animes (ou filmes) quando nada é parecido de verdade.
+
+Os parâmetros ficam em [`src/server/similar-titles/config.ts`](src/server/similar-titles/config.ts).
+O resultado de cada título fica em cache por dias; a primeira visita a um título leva alguns
+segundos para essa seção, que chega depois do resto da página (streaming com `Suspense`).
+
 ## Arquitetura
 
 ```text
@@ -235,11 +267,14 @@ src/
 │   ├── auth/            # Telas e formulários de login, cadastro e recuperação de senha
 │   ├── account/         # Liga a sessão à biblioteca: menu da conta, logout e junção de dados
 │   ├── title/           # Página de detalhes do título
+│   ├── person/          # Página da pessoa (elenco, direção, autores)
 │   └── home/            # Página inicial
 ├── domain/              # Tipos e regras de negócio puros (sem React/Next), com schemas Zod
 ├── server/              # Código exclusivo do servidor
 │   ├── tmdb/            # Cliente, tipos, conversores e catálogo do TMDB
 │   ├── recommendations/ # Motor de recomendação
+│   ├── similar-titles/  # Motor de títulos parecidos (enredo e gênero)
+│   ├── titles/          # Consultas compostas da página do título (outras obras, parecidos)
 │   ├── auth/            # Configuração do Better Auth e leitura da sessão
 │   ├── db/              # Conexão e schema do banco (Drizzle)
 │   ├── library/         # Biblioteca sincronizada de cada usuário (repositório)
@@ -258,7 +293,8 @@ test/                    # Configuração e fixtures dos testes
   componentes de `ui` não conhecem o domínio. As regras ficam em funções puras e testáveis
   (ex.: `domain/library.ts`); hooks e componentes apenas as conectam.
 - **Componentes reutilizáveis:** o `MediaCard` é a base de todos os cards (avaliar, recomendação,
-  lista e relacionados), que só preenchem os seus “slots”.
+  lista e relacionados), que só preenchem os seus “slots”. As listas ordenáveis (outras obras,
+  parecidos e filmografia) usam o mesmo `TitleCollection`.
 - **Estilo:** cores e tokens em `src/app/globals.css` (`@theme`); variantes com
   `class-variance-authority`; classes combinadas com `cn()`.
 - **Erros da API:** sempre no formato `{ error: { code, message } }`, com mensagens em português.

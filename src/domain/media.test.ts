@@ -6,6 +6,7 @@ import {
   getMediaCategory,
   getMediaKey,
   getMediaLabel,
+  getTitleAuthors,
   isAnime,
   matchesFilter,
   parseMediaKey,
@@ -78,6 +79,42 @@ describe('filtros de seção', () => {
     expect(matchesFilter(series, 'movie')).toBe(false);
     expect(matchesFilter(series, 'tv')).toBe(true);
     expect(matchesFilter(series, 'anime')).toBe(false);
+  });
+});
+
+describe('getTitleAuthors', () => {
+  const person = (id: number, role: string) => ({
+    id,
+    name: `Pessoa ${id}`,
+    profilePath: null,
+    role,
+  });
+  const director = person(1, 'Direção');
+  const creator = person(2, 'Criação');
+  const mangaka = person(3, 'Obra original');
+
+  it('filmes e séries: direção ou criação, mesmo quando há obra original', () => {
+    expect(
+      getTitleAuthors(buildDetails({ creators: [director], originalAuthors: [mangaka] })),
+    ).toEqual([director]);
+  });
+
+  it('animes: o autor da obra original vem primeiro', () => {
+    const anime = buildDetails({
+      mediaType: 'tv',
+      genreIds: [ANIMATION],
+      originalLanguage: 'ja',
+      creators: [creator],
+      originalAuthors: [mangaka],
+    });
+    expect(getTitleAuthors(anime)).toEqual([mangaka]);
+    expect(getTitleAuthors({ ...anime, originalAuthors: [] })).toEqual([creator]);
+  });
+
+  it('série sem criador usa o autor da obra original', () => {
+    expect(
+      getTitleAuthors(buildDetails({ mediaType: 'tv', creators: [], originalAuthors: [mangaka] })),
+    ).toEqual([mangaka]);
   });
 });
 

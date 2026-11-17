@@ -37,12 +37,46 @@ export interface TmdbTvListItem extends TmdbListItemBase {
 
 export type TmdbListItem = TmdbMovieListItem | TmdbTvListItem;
 
+/** Um título na filmografia de uma pessoa (`combined_credits`). */
+export type TmdbPersonCredit<Extra> =
+  | (TmdbMovieListItem & { media_type: 'movie'; adult?: boolean } & Extra)
+  | (TmdbTvListItem & { media_type: 'tv'; adult?: boolean; episode_count?: number } & Extra);
+
+export type TmdbPersonCastCredit = TmdbPersonCredit<{ character?: string }>;
+export type TmdbPersonCrewCredit = TmdbPersonCredit<{ job: string }>;
+
 /** Créditos de uma pessoa em filmes e séries (`/person/{id}/combined_credits`). */
 export interface TmdbCombinedCredits {
-  crew?: Array<
-    | (TmdbMovieListItem & { media_type: 'movie'; job: string })
-    | (TmdbTvListItem & { media_type: 'tv'; job: string })
-  >;
+  cast?: TmdbPersonCastCredit[];
+  crew?: TmdbPersonCrewCredit[];
+}
+
+export interface TmdbPersonDetails {
+  id: number;
+  name: string;
+  biography?: string;
+  known_for_department?: string | null;
+  birthday?: string | null;
+  deathday?: string | null;
+  place_of_birth?: string | null;
+  profile_path?: string | null;
+  combined_credits?: TmdbCombinedCredits;
+}
+
+/** Equipe de todas as temporadas de uma série (`/tv/{id}/aggregate_credits`). */
+export interface TmdbAggregateCredits {
+  crew?: Array<{
+    id: number;
+    name: string;
+    profile_path?: string | null;
+    jobs?: Array<{ job: string }>;
+  }>;
+}
+
+/** `/movie/{id}/keywords` devolve `keywords`; `/tv/{id}/keywords` devolve `results`. */
+export interface TmdbKeywordsResponse {
+  keywords?: TmdbKeyword[];
+  results?: TmdbKeyword[];
 }
 
 interface TmdbPersonSearchItem {

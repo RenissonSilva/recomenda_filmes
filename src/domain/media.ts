@@ -87,6 +87,8 @@ export interface MediaDetails extends MediaSummary {
   cast: Person[];
   /** Direção (filmes) ou criação (séries). */
   creators: Person[];
+  /** Autores da obra adaptada (mangá, livro, HQ…), quando o título é uma adaptação. */
+  originalAuthors: Person[];
   trailerYoutubeKey: string | null;
   watchProviders: WatchProviders | null;
   recommendations: MediaSummary[];
@@ -146,6 +148,20 @@ export function getMediaLabel(media: CategorizableMedia): string {
 
 export function matchesFilter(media: CategorizableMedia, filter: MediaFilter): boolean {
   return filter === 'all' || getMediaCategory(media) === filter;
+}
+
+/**
+ * Quem é o "autor" do título (usado em "Outras obras de…"): a direção nos filmes, a criação
+ * nas séries e o autor da obra original (mangá, light novel…) nos animes. Na falta dele,
+ * vale o outro grupo — ex.: série sem criador cadastrado → autor do livro adaptado.
+ */
+export function getTitleAuthors(
+  media: CategorizableMedia & Pick<MediaDetails, 'creators' | 'originalAuthors'>,
+): Person[] {
+  const [preferred, fallback] = isAnime(media)
+    ? [media.originalAuthors, media.creators]
+    : [media.creators, media.originalAuthors];
+  return preferred.length > 0 ? preferred : fallback;
 }
 
 /** Reduz um título completo ao resumo (evita trafegar/persistir dados desnecessários). */

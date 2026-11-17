@@ -1,6 +1,8 @@
 const LOCALE = 'pt-BR';
 
 const listFormatter = new Intl.ListFormat(LOCALE, { style: 'long', type: 'conjunction' });
+// As datas do TMDB não têm horário: formatar em UTC evita voltar um dia no fuso do Brasil.
+const dateFormatter = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'long', timeZone: 'UTC' });
 const decimalFormatter = new Intl.NumberFormat(LOCALE, {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
@@ -20,9 +22,20 @@ export function formatVoteAverage(value: number): string {
   return decimalFormatter.format(value);
 }
 
+/** "1975-04-02" → "2 de abril de 1975"; data inválida → `null`. */
+export function formatDate(isoDate: string): string | null {
+  const date = new Date(`${isoDate.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : dateFormatter.format(date);
+}
+
 /** ["A", "B", "C"] → "A, B e C". */
 export function formatList(items: readonly string[]): string {
   return listFormatter.format(items);
+}
+
+/** `formatList` em partes (nomes e separadores), para montar a lista com links. */
+export function formatListToParts(items: readonly string[]) {
+  return listFormatter.formatToParts(items);
 }
 
 /** pluralize(1, 'título', 'títulos') → "1 título". */

@@ -1,5 +1,5 @@
 import { toCanonicalGenres } from '@/domain/genres';
-import type { MediaDetails, MediaSummary } from '@/domain/media';
+import type { Keyword, MediaDetails, MediaSummary } from '@/domain/media';
 
 import { RECOMMENDER_CONFIG } from './config';
 import type { FeatureLevel } from './types';
@@ -28,6 +28,9 @@ export interface TitleVectors {
   year: number | null;
 }
 
+/** Peso de cada grupo de características na similaridade de conteúdo. */
+export type SimilarityWeights = Readonly<Record<'genres' | 'keywords' | 'people', number>>;
+
 export function isDetailed(media: MediaSummary | MediaDetails): media is MediaDetails {
   return 'keywords' in media && 'cast' in media;
 }
@@ -38,14 +41,11 @@ export function extractFeatures(
 ): TitleFeatures {
   const { maxKeywords, maxCast, creatorWeight } = RECOMMENDER_CONFIG;
 
-  const genres = new Map(toCanonicalGenres(media.genreIds).map((genre) => [`genre:${genre}`, 1]));
-  const keywords = new Map<string, number>();
+  let keywords = new Map<string, number>();
   const people = new Map<string, number>();
 
   if (level === 'full' && isDetailed(media)) {
-    for (const keyword of media.keywords.slice(0, maxKeywords)) {
-      keywords.set(`keyword:${keyword.id}`, 1);
-    }
+    keywords = keywordFeatures(media.keywords.slice(0, maxKeywords));
     for (const person of media.cast.slice(0, maxCast)) {
       people.set(`person:${person.id}`, 1);
     }
@@ -54,7 +54,43 @@ export function extractFeatures(
     }
   }
 
-  return { genres, keywords, people, language: media.originalLanguage, year: media.releaseYear };
+  return {
+    genres: genreFeatures(media),
+    keywords,
+    people,
+    language: media.originalLanguage,
+    year: media.releaseYear,
+  };
+}
+
+/**
+ * Só o conteúdo da obra — gêneros e palavras-chave da trama —, sem elenco nem direção.
+ * Útil quando as palavras-chave foram carregadas à parte dos detalhes do título.
+ */
+export function extractContentFeatures(
+  media: MediaSummary,
+  keywords: readonly Keyword[],
+): TitleFeatures {
+  return {
+    genres: genreFeatures(media),
+    keywords: keywordFeatures(keywords),
+    people: new Map(),
+    language: media.originalLanguage,
+    year: media.releaseYear,
+  };
+}
+
+/** Chave de uma palavra-chave no vetor de características (ex.: `keyword:1612`). */
+export function keywordFeatureKey(keywordId: number): string {
+  return `keyword:${keywordId}`;
+}
+
+function genreFeatures(media: Pick<MediaSummary, 'genreIds'>): Map<string, number> {
+  return new Map(toCanonicalGenres(media.genreIds).map((genre) => [`genre:${genre}`, 1]));
+}
+
+function keywordFeatures(keywords: readonly Keyword[]): Map<string, number> {
+  return new Map(keywords.map((keyword) => [keywordFeatureKey(keyword.id), 1]));
 }
 
 export function featureKeys(features: TitleFeatures): string[] {
@@ -76,9 +112,12 @@ export function vectorize(features: TitleFeatures, idf: IdfTable): TitleVectors 
  * Gêneros, palavras-chave e pessoas definem a semelhança; idioma e época apenas a modulam,
  * para que dois títulos sem nada em comum não pareçam parecidos só por serem do mesmo ano.
  */
-export function contentSimilarity(a: TitleVectors, b: TitleVectors, level: FeatureLevel): number {
-  const weights = RECOMMENDER_CONFIG.similarityWeights;
-
+export function contentSimilarity(
+  a: TitleVectors,
+  b: TitleVectors,
+  level: FeatureLevel,
+  weights: SimilarityWeights = RECOMMENDER_CONFIG.similarityWeights,
+): number {
   const content =
     level === 'basic'
       ? RECOMMENDER_CONFIG.basicSimilarityWeight * cosineSimilarity(a.genres, b.genres)

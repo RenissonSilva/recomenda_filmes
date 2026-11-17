@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { chunk, interleave, uniqueBy } from './array';
 import { mapWithConcurrency } from './async';
-import { formatList, formatRuntime, formatVoteAverage, getInitials, pluralize } from './format';
+import {
+  formatDate,
+  formatList,
+  formatRuntime,
+  formatVoteAverage,
+  getInitials,
+  pluralize,
+} from './format';
 import { hashString } from './hash';
 import { tmdbImageLoader } from './tmdb-image';
 
@@ -69,6 +76,11 @@ describe('format', () => {
     expect(getInitials('Ana Maria Souza')).toBe('AS');
     expect(getInitials('  ana ')).toBe('A');
     expect(getInitials('')).toBe('');
+  });
+
+  it('formata datas do TMDB sem depender do fuso horário', () => {
+    expect(formatDate('1975-04-02')).toBe('2 de abril de 1975');
+    expect(formatDate('')).toBeNull();
   });
 });
 

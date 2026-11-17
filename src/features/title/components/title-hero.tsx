@@ -5,7 +5,8 @@ import { MediaPoster } from '@/components/media/media-poster';
 import { TmdbImage } from '@/components/media/tmdb-image';
 import { Badge } from '@/components/ui/badge';
 import { getMediaLabel, toMediaSummary, type MediaDetails } from '@/domain/media';
-import { formatList, formatRuntime, formatVoteAverage, pluralize } from '@/lib/format';
+import { PersonLinkList } from '@/features/person/components/person-link-list';
+import { formatRuntime, formatVoteAverage, pluralize } from '@/lib/format';
 
 import { TitleActions } from './title-actions';
 
@@ -77,7 +78,7 @@ export function TitleHero({ details }: { details: MediaDetails }) {
           {details.creators.length > 0 && (
             <p className="text-sm">
               <span className="text-fg-muted">{creatorsLabel}: </span>
-              {formatList(details.creators.map((person) => person.name))}
+              <PersonLinkList people={details.creators} />
             </p>
           )}
 
